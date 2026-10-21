@@ -15,6 +15,7 @@ import { MultiplayerRoomState } from '../game/multiplayer/MultiplayerClient';
 import { RaceDifficulty, RaceLapOption, CustomLiverySettings, CareerSeasonState } from '../game/career/CareerTypes';
 import { TireCompoundType } from '../game/physics/TireCompound';
 import { CircuitId } from '../game/circuits/ICircuit';
+import { menuMusic } from '../utils/menuMusicManager';
 
 export interface StartScreenProps {
   onStartSolo: (
@@ -86,6 +87,12 @@ export const StartScreen: React.FC<StartScreenProps> = (props) => {
   const handleSetPhase = (newPhase: 'title' | 'dashboard') => {
     setInternalPhase(newPhase);
     props.onPhaseChange?.(newPhase);
+
+    if (newPhase === 'dashboard') {
+      menuMusic.play({ fadeInMs: 5000 });
+    } else {
+      menuMusic.pause(1600);
+    }
   };
 
   // Switch to dashboard if roomState changes dynamically
@@ -110,3 +117,4 @@ export const StartScreen: React.FC<StartScreenProps> = (props) => {
     />
   );
 };
+

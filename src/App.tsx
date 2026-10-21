@@ -38,6 +38,7 @@ import { CareerStudioModal } from './components/CareerStudioModal';
 import { CareerIntroVideo } from './components/CareerIntroVideo';
 import { CinematicShotInfo } from './game/camera/CinematicDirector';
 import { preloadUiAssets } from './utils/uiAssetPreloader';
+import { menuMusic } from './utils/menuMusicManager';
 
 export default function App() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -518,6 +519,8 @@ export default function App() {
       startingCompound: TireCompoundType;
       isCareerCinematic?: boolean;
     }) => {
+      // Smooth, gradual fade-out of menu music as loading screen appears
+      menuMusic.pause(1600);
       setSelectedCircuit(config.circuitId);
       setPendingRaceConfig(config);
       setIsFadingOutLoading(false);
@@ -979,9 +982,14 @@ export default function App() {
 
   const handlePhaseChange = useCallback((phase: 'title' | 'dashboard') => {
     setMenuPhase(phase);
-    if (phase === 'title' && engineRef.current) {
-      engineRef.current.dispose();
-      engineRef.current = null;
+    if (phase === 'title') {
+      menuMusic.pause(1600);
+      if (engineRef.current) {
+        engineRef.current.dispose();
+        engineRef.current = null;
+      }
+    } else {
+      menuMusic.play({ fadeInMs: 5000 });
     }
   }, []);
 
@@ -995,6 +1003,7 @@ export default function App() {
     setIsLoadingRace(false);
     setIsFadingOutLoading(false);
     setMenuPhase('dashboard'); // Return directly to selectors dashboard
+    menuMusic.play({ fadeInMs: 5000 });
     if (isMultiplayer) {
       multiplayerRef.current?.leaveRoom();
       setRoomState(null);

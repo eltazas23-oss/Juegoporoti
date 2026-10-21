@@ -59,6 +59,9 @@ import {
   Hash,
   Pencil,
   ChevronLeft,
+  Target,
+  Crosshair,
+  Camera,
 } from 'lucide-react';
 import { CameraDistanceMode, CameraViewMode } from '../game/RacingGameEngine';
 import { MultiplayerRoomState } from '../game/multiplayer/MultiplayerClient';
@@ -67,6 +70,7 @@ import { TireCompoundType } from '../game/physics/TireCompound';
 import { playUiClick, playUiHover, playModeSelectChime } from '../utils/uiAudio';
 import { CircuitId } from '../game/circuits/ICircuit';
 import { AVAILABLE_CIRCUITS } from '../game/circuits/CircuitRegistry';
+import { SoundtrackModal } from './SoundtrackModal';
 
 export interface MainMenuDashboardProps {
   onStartSolo: (
@@ -251,6 +255,9 @@ export const MainMenuDashboard: React.FC<MainMenuDashboardProps> = ({
 
   // Controls Guide Modal
   const [showControlsModal, setShowControlsModal] = useState<boolean>(false);
+
+  // Soundtrack Jukebox Modal
+  const [isSoundtrackOpen, setIsSoundtrackOpen] = useState<boolean>(false);
 
   // GT7 Style Active Card Index on Screen 2
   const [selectedCardIndex, setSelectedCardIndex] = useState<number>(0);
@@ -646,8 +653,22 @@ export const MainMenuDashboard: React.FC<MainMenuDashboardProps> = ({
       {/* 1. TOP HEADER / FULLSCREEN ACTION                                         */}
       {/* ========================================================================= */}
       {activeScreen === 'root' ? (
-        /* Screen 2: No top bar or letters, only fullscreen button with nearly transparent background */
-        <div className="absolute top-2.5 sm:top-3.5 right-2.5 sm:right-3.5 z-30">
+        /* Screen 2: Top action cluster with unobtrusive Soundtrack button & fullscreen button */
+        <div className="absolute top-2.5 sm:top-3.5 right-2.5 sm:right-3.5 z-30 flex items-center gap-2">
+          {/* Non-intrusive Soundtrack Button */}
+          <button
+            onClick={() => {
+              playUiClick();
+              setIsSoundtrackOpen(true);
+            }}
+            onMouseEnter={playUiHover}
+            title="Banda Sonora & Reproductor de Música"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-white/5 hover:bg-white/15 border border-white/10 text-white/80 hover:text-white transition-all cursor-pointer backdrop-blur-sm shadow-sm group"
+          >
+            <Disc className="w-3.5 h-3.5 text-red-500 group-hover:rotate-90 transition-transform duration-300" />
+            <span className="text-[11px] sm:text-xs font-mono font-bold tracking-wider">SOUNDTRACK</span>
+          </button>
+
           <button
             onClick={toggleFullscreen}
             onMouseEnter={playUiHover}
@@ -1465,206 +1486,910 @@ export const MainMenuDashboard: React.FC<MainMenuDashboardProps> = ({
         </div>
       )}
 
-      {/* OVERLAY 2: CIRCUIT SELECTION MODAL */}
+      {/* OVERLAY 2: CIRCUIT SELECTION MODAL - REDESIGNED IDENTICAL TO REFERENCE DESIGN */}
       {activeOverlay === 'circuit' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-2xl rounded-3xl bg-neutral-900 border border-white/20 p-5 sm:p-6 shadow-2xl relative">
-            <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-3">
-              <div className="flex items-center gap-2.5">
-                <Compass className="w-5 h-5 text-red-500" />
-                <div>
-                  <h3 className="text-base font-black uppercase tracking-wider text-white font-mono">
-                    SELECCIÓN DE CIRCUITO FIA
-                  </h3>
-                  <p className="text-[10px] text-neutral-400">Elige el trazado de competición</p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  playUiClick(700);
-                  setActiveOverlay('none');
-                }}
-                className="p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden flex items-center justify-center p-3 sm:p-5 md:p-6 animate-in fade-in duration-200"
+          style={{
+            backgroundImage: "url('/images/circuit_clean_bg.webp')",
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat',
+          }}
+        >
+          {/* Subtle dark ambient backdrop overlay */}
+          <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px] pointer-events-none" />
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {AVAILABLE_CIRCUITS.map((c) => {
-                const isSelected = selectedCircuit === c.id;
-                return (
-                  <button
-                    key={c.id}
-                    onClick={() => handleSelectCircuitLocal(c.id)}
-                    onMouseEnter={playUiHover}
-                    className={`p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                      isSelected
-                        ? 'bg-red-600/25 border-red-500 shadow-[0_0_20px_rgba(239,68,68,0.4)] text-white'
-                        : 'bg-white/5 border-white/10 hover:border-white/30 text-neutral-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-2xl">{c.flagEmoji || '🏁'}</span>
-                      {isSelected && <CheckCircle2 className="w-4 h-4 text-red-400" />}
-                    </div>
-                    <div className="mt-3">
-                      <div className="text-xs font-black uppercase tracking-wide">{c.name}</div>
-                      <div className="text-[10px] text-neutral-400 mt-1 font-mono">
-                        {(c.totalLength / 1000).toFixed(2)} KM · {c.cornersCount} Curvas
-                      </div>
-                      <div className="text-[9px] text-amber-400 mt-0.5 font-mono">
-                        V. Máx: {c.topSpeedKmh} km/h
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            <button
-              onClick={() => {
-                playUiClick(700);
-                setActiveOverlay('none');
+          {/* MAIN MODAL CONTAINER WITH CHAMFERED CORNERS */}
+          <div
+            className="relative z-10 w-full max-w-3xl my-auto p-[1px] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.95),0_0_40px_rgba(0,0,0,0.85)] animate-in zoom-in-95 duration-200"
+            style={{
+              clipPath:
+                'polygon(16px 0%, calc(100% - 16px) 0%, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0% calc(100% - 16px), 0% 16px)',
+              background:
+                'linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(100,110,130,0.18) 50%, rgba(35,40,50,0.45) 100%)',
+            }}
+          >
+            <div
+              className="w-full bg-[#0a0c13]/95 p-4 sm:p-6 md:p-7 flex flex-col justify-between"
+              style={{
+                clipPath:
+                  'polygon(15px 0%, calc(100% - 15px) 0%, 100% 15px, 100% calc(100% - 15px), calc(100% - 15px) 100%, 15px 100%, 0% calc(100% - 15px), 0% 15px)',
               }}
-              className="w-full mt-5 py-3 rounded-xl bg-white/15 hover:bg-white/20 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer font-mono"
             >
-              CONFIRMAR CIRCUITO
-            </button>
+              {/* TOP HEADER */}
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <div className="flex items-center gap-3">
+                  <span className="w-2.5 h-6 bg-red-600 -skew-x-[20deg] inline-block shadow-[0_0_12px_rgba(239,68,68,0.9)] shrink-0" />
+                  <div>
+                    <h2 className="text-sm sm:text-base md:text-lg font-black uppercase tracking-wider text-white font-mono">
+                      SELECCIÓN DE CIRCUITO FIA
+                    </h2>
+                    <p className="text-[11px] sm:text-xs text-neutral-400 font-sans mt-0.5">
+                      Elige el trazado de competición
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    playUiClick(700);
+                    setActiveOverlay('none');
+                  }}
+                  className="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                  title="Cerrar"
+                >
+                  <X className="w-5 h-5 sm:w-6 sm:h-6" />
+                </button>
+              </div>
+
+              {/* THREE CIRCUIT CARDS GRID */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-4.5">
+                {AVAILABLE_CIRCUITS.map((c) => {
+                  const isSelected = selectedCircuit === c.id;
+
+                  // Circuit visuals matching the reference image precisely
+                  const isC1 = c.id === 'square_apex';
+                  const isC2 = c.id === 'speedway_gp';
+                  const isC3 = c.id === 'singapore_marina';
+
+                  const previewImage = isC1
+                    ? '/images/circuit_preview_1.webp'
+                    : isC2
+                    ? '/images/circuit_preview_2.webp'
+                    : '/images/circuit_preview_3.webp';
+
+                  const displayName = isC1 ? 'CIRCUIT 1' : isC2 ? 'CIRCUIT 2' : 'MARINA BAY';
+                  const kmText = isC1 ? '0.97 KM' : isC2 ? '2.17 KM' : '4.93 KM';
+                  const curvesText = isC1 ? '4 Curvas' : isC2 ? '8 Curvas' : '19 Curvas';
+                  const topSpeedVal = isC1 ? 345 : isC2 ? 358 : 355;
+
+                  return (
+                    <div
+                      key={c.id}
+                      onClick={() => handleSelectCircuitLocal(c.id)}
+                      onMouseEnter={playUiHover}
+                      className={`relative cursor-pointer transition-all duration-200 group text-left ${
+                        isSelected ? 'scale-[1.01]' : 'hover:scale-[1.005]'
+                      }`}
+                    >
+                      {/* Outer Card Chamfered Frame */}
+                      <div
+                        className={`w-full p-[1.5px] transition-all duration-200 ${
+                          isSelected
+                            ? 'shadow-[0_0_25px_rgba(239,68,68,0.45)]'
+                            : 'hover:shadow-[0_0_15px_rgba(255,255,255,0.08)]'
+                        }`}
+                        style={{
+                          clipPath:
+                            'polygon(12px 0%, calc(100% - 12px) 0%, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0% calc(100% - 12px), 0% 12px)',
+                          background: isSelected
+                            ? 'linear-gradient(180deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%)'
+                            : 'linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(55,60,70,0.35) 100%)',
+                        }}
+                      >
+                        <div
+                          className={`w-full h-full flex flex-col justify-between p-2.5 sm:p-3 transition-colors ${
+                            isSelected ? 'bg-[#121015]' : 'bg-[#10121a] group-hover:bg-[#131620]'
+                          }`}
+                          style={{
+                            clipPath:
+                              'polygon(11px 0%, calc(100% - 11px) 0%, 100% 11px, 100% calc(100% - 11px), calc(100% - 11px) 100%, 11px 100%, 0% calc(100% - 11px), 0% 11px)',
+                          }}
+                        >
+                          {/* Track Preview Image with chamfered top */}
+                          <div
+                            className="relative w-full aspect-16/10 rounded-t-lg overflow-hidden bg-black/60 shrink-0"
+                            style={{
+                              clipPath:
+                                'polygon(8px 0%, calc(100% - 8px) 0%, 100% 8px, 100% 100%, 0% 100%, 0% 8px)',
+                            }}
+                          >
+                            <img
+                              src={previewImage}
+                              alt={displayName}
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              loading="eager"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent pointer-events-none" />
+
+                            {/* Red Checkmark Badge on Selected */}
+                            {isSelected && (
+                              <div className="absolute top-2 right-2 sm:top-2.5 sm:right-2.5 w-7 h-7 sm:w-8 sm:h-8 rounded-full border-2 border-red-500 bg-red-950/70 flex items-center justify-center shadow-[0_0_12px_rgba(239,68,68,0.9)] animate-in zoom-in-75 duration-150">
+                                <Check className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 stroke-[3]" />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Info area below preview */}
+                          <div className="pt-3 px-1 flex flex-col justify-between grow">
+                            <div>
+                              {/* National Flag */}
+                              <div className="mb-2">
+                                {isC1 && (
+                                  <div className="w-6 h-4 rounded-xs overflow-hidden border border-white/20 flex flex-col shrink-0 shadow-xs">
+                                    <div className="w-full h-1/2 bg-red-600" />
+                                    <div className="w-full h-1/2 bg-white" />
+                                  </div>
+                                )}
+                                {isC2 && (
+                                  <div className="w-6 h-4 rounded-xs overflow-hidden border border-white/20 flex shrink-0 shadow-xs">
+                                    <div className="w-1/3 h-full bg-[#009246]" />
+                                    <div className="w-1/3 h-full bg-white" />
+                                    <div className="w-1/3 h-full bg-[#ce2b37]" />
+                                  </div>
+                                )}
+                                {isC3 && (
+                                  <div className="w-6 h-4 rounded-xs overflow-hidden border border-white/20 flex flex-col shrink-0 shadow-xs relative">
+                                    <div className="w-full h-1/2 bg-[#ED2939] flex items-center pl-0.5">
+                                      <span className="text-[6px] text-white leading-none font-bold">★</span>
+                                    </div>
+                                    <div className="w-full h-1/2 bg-white" />
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Circuit Name */}
+                              <div className="text-white font-extrabold uppercase tracking-wider text-xs sm:text-sm font-mono">
+                                {displayName}
+                              </div>
+
+                              {/* Distance & Curves */}
+                              <div className="text-neutral-400 font-mono text-[10px] sm:text-xs mt-0.5">
+                                {kmText} &nbsp;•&nbsp; {curvesText}
+                              </div>
+                            </div>
+
+                            {/* Max Speed */}
+                            <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center gap-1.5 font-mono text-[10px] sm:text-xs">
+                              <Gauge
+                                className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 ${
+                                  isSelected ? 'text-red-500' : 'text-amber-400'
+                                }`}
+                              />
+                              <span
+                                className={
+                                  isSelected ? 'text-red-500 font-bold' : 'text-amber-400 font-bold'
+                                }
+                              >
+                                V. Máx.: {topSpeedVal} km/h
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* BOTTOM CONFIRM BUTTON - CHAMFERED WITH RED NEON OUTLINE */}
+              <div className="mt-5 sm:mt-6 w-full flex justify-center">
+                <button
+                  onClick={() => {
+                    playUiClick(700);
+                    setActiveOverlay('none');
+                  }}
+                  onMouseEnter={playUiHover}
+                  className="relative w-full group cursor-pointer transition-all duration-200 active:scale-[0.99]"
+                  style={{
+                    filter: 'drop-shadow(0 0 16px rgba(239,68,68,0.45))',
+                  }}
+                >
+                  <div
+                    className="w-full p-[1.5px] transition-all"
+                    style={{
+                      clipPath:
+                        'polygon(16px 0%, calc(100% - 16px) 0%, 100% 50%, calc(100% - 16px) 100%, 16px 100%, 0% 50%)',
+                      background:
+                        'linear-gradient(90deg, #dc2626 0%, #ef4444 30%, #f87171 50%, #ef4444 70%, #dc2626 100%)',
+                    }}
+                  >
+                    <div
+                      className="w-full py-3 sm:py-3.5 px-6 flex items-center justify-center gap-2.5 transition-colors bg-gradient-to-r from-[#141217] via-[#1c1822] to-[#141217] group-hover:from-[#1c1620] group-hover:via-[#251d2c] group-hover:to-[#1c1620]"
+                      style={{
+                        clipPath:
+                          'polygon(15px 0%, calc(100% - 15px) 0%, calc(100% - 1px) 50%, calc(100% - 15px) 100%, 15px 100%, 1px 50%)',
+                      }}
+                    >
+                      <span className="text-white font-mono font-black text-xs sm:text-sm tracking-widest uppercase">
+                        CONFIRMAR CIRCUITO
+                      </span>
+                      <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
       {/* OVERLAY 3: LAPS & DISTANCE MODAL */}
       {activeOverlay === 'laps' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-lg rounded-3xl bg-neutral-900 border border-white/20 p-5 sm:p-6 shadow-2xl relative">
-            <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-3">
-              <div className="flex items-center gap-2.5">
-                <Clock className="w-5 h-5 text-amber-400" />
-                <div>
-                  <h3 className="text-base font-black uppercase tracking-wider text-white font-mono">
-                    DURACIÓN DEL GRAN PREMIO
-                  </h3>
-                  <p className="text-[10px] text-neutral-400">Selecciona el número de vueltas de la carrera</p>
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden flex items-center justify-center p-3 sm:p-4 select-none animate-in fade-in duration-200 laps-modal-backdrop"
+        >
+          {/* Subtle dark ambient backdrop overlay for maximum readability while preserving the wet track & pit lights */}
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-[0.5px] pointer-events-none" />
+
+          <div className="relative z-10 w-full max-w-md landscape:max-w-3xl flex flex-col landscape:flex-row landscape:items-center landscape:justify-center gap-3 landscape:gap-4 my-auto">
+            {/* LEFT COLUMN IN LANDSCAPE / TOP IN PORTRAIT: HEADER & (IN LANDSCAPE) ACTION BUTTON */}
+            <div className="flex flex-col gap-3 landscape:w-[42%] shrink-0">
+              {/* HEADER PANEL WITH CHAMFERED CORNER */}
+              <div
+                className="relative transition-all"
+                style={{
+                  clipPath: 'polygon(20px 0, 100% 0, 100% 100%, 0 100%, 0 20px)',
+                }}
+              >
+                <div
+                  className="p-[1.5px] bg-gradient-to-b from-amber-500/50 via-neutral-700/60 to-neutral-800/80 shadow-[0_0_15px_rgba(245,158,11,0.25)]"
+                  style={{
+                    clipPath: 'polygon(20px 0, 100% 0, 100% 100%, 0 100%, 0 20px)',
+                  }}
+                >
+                  <div
+                    className="px-4 py-3 sm:py-3.5 bg-[#0d0e13]/95 flex items-center justify-between"
+                    style={{
+                      backgroundColor: 'rgba(13, 14, 19, 0.94)',
+                      clipPath: 'polygon(19px 0, 100% 0, 100% 100%, 0 100%, 0 19px)',
+                      backgroundImage:
+                        'radial-gradient(ellipse at 20% 50%, rgba(245, 158, 11, 0.08) 0%, transparent 60%), repeating-linear-gradient(45deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 6px)',
+                    }}
+                  >
+                    <div className="flex items-center gap-3">
+                      {/* Glowing Amber Racing Emblem // */}
+                      <div
+                        className="relative flex items-center justify-center w-10 h-10 bg-black/70 border border-amber-500/50 shadow-[0_0_12px_rgba(245,158,11,0.35)] shrink-0"
+                        style={{
+                          clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)',
+                        }}
+                      >
+                        <div className="flex items-center gap-1 -skew-x-12">
+                          <span className="w-1.5 h-5 bg-amber-400 rounded-xs shadow-[0_0_8px_#f59e0b]" />
+                          <span className="w-1.5 h-5 bg-amber-400 rounded-xs shadow-[0_0_8px_#f59e0b]" />
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white font-mono leading-none">
+                          DURACIÓN DEL
+                        </h3>
+                        <h2 className="text-base sm:text-lg font-black uppercase tracking-wider text-amber-400 font-mono leading-tight drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]">
+                          GRAN PREMIO
+                        </h2>
+                        <p className="text-[10px] text-neutral-400 font-mono">
+                          Selecciona el número de vueltas de la carrera
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        playUiClick(700);
+                        setActiveOverlay('none');
+                      }}
+                      className="p-1.5 text-neutral-400 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer self-start"
+                      aria-label="Cerrar modal"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               </div>
+
+              {/* CONFIRM BUTTON (SHOWN IN LANDSCAPE ORIENTATION ON LEFT COLUMN) */}
+              <div className="hidden landscape:block pt-1">
+                <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-amber-400/90 to-transparent shadow-[0_0_8px_#f59e0b] mb-2 opacity-90" />
+                <button
+                  onClick={() => {
+                    playUiClick(700);
+                    setActiveOverlay('none');
+                  }}
+                  onMouseEnter={playUiHover}
+                  className="w-full relative group transition-all duration-200 cursor-pointer"
+                  style={{
+                    filter: 'drop-shadow(0 0 14px rgba(245, 158, 11, 0.45))',
+                  }}
+                >
+                  <div
+                    className="p-[1.5px] bg-gradient-to-r from-amber-500 via-amber-300 to-amber-500 transition-all group-hover:brightness-125"
+                    style={{
+                      clipPath:
+                        'polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px), 0 14px)',
+                    }}
+                  >
+                    <div
+                      className="py-2.5 px-4 bg-gradient-to-r from-neutral-950 via-[#18150e] to-neutral-950 flex items-center justify-center gap-2 transition-colors"
+                      style={{
+                        backgroundColor: '#0c0d12',
+                        clipPath:
+                          'polygon(13px 0, calc(100% - 13px) 0, 100% 13px, 100% calc(100% - 13px), calc(100% - 13px) 100%, 13px 100%, 0 calc(100% - 13px), 0 13px)',
+                        backgroundImage:
+                          'linear-gradient(to right, #0a0a0c, #1a160f, #0a0a0c), repeating-linear-gradient(45deg, rgba(245, 158, 11, 0.025) 0px, rgba(245, 158, 11, 0.025) 1px, transparent 1px, transparent 6px)',
+                      }}
+                    >
+                      <span className="font-mono text-xs font-black uppercase tracking-[0.2em] text-white">
+                        CONFIRMAR DURACIÓN
+                      </span>
+                      <ArrowRight className="w-4 h-4 text-amber-400 stroke-[3] transition-transform group-hover:translate-x-1" />
+                    </div>
+                  </div>
+                </button>
+                <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-amber-400/90 to-transparent shadow-[0_0_8px_#f59e0b] mt-2 opacity-90" />
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN IN LANDSCAPE / MAIN COLUMN IN PORTRAIT: THREE LAP OPTIONS CARDS */}
+            <div className="flex flex-col gap-2.5 landscape:w-[58%] flex-1">
+              {[
+                {
+                  val: 9 as RaceLapOption,
+                  title: 'SPRINT RÁPIDO',
+                  desc: 'Carrera corta de alta intensidad',
+                  litBars: 4,
+                },
+                {
+                  val: 20 as RaceLapOption,
+                  title: 'GRAN PREMIO',
+                  desc: 'Estrategia completa y gestión de neumáticos',
+                  litBars: 5,
+                },
+                {
+                  val: 50 as RaceLapOption,
+                  title: 'RESISTENCIA',
+                  desc: 'Carrera larga, desgaste y estrategia avanzada',
+                  litBars: 7,
+                },
+              ].map((item) => {
+                const isSelected = laps === item.val;
+                // Format estimated lap time in M:SS format
+                const lapTime = currentCircuit.expectedLapTimeSec || 16.8;
+                const totalSecs = Math.round(lapTime * item.val);
+                const mins = Math.floor(totalSecs / 60);
+                const secs = Math.round(totalSecs % 60);
+                const timeFormatted = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+
+                return (
+                  <div
+                    key={item.val}
+                    onClick={() => {
+                      playUiClick(700);
+                      setLaps(item.val);
+                    }}
+                    onMouseEnter={playUiHover}
+                    className="relative transition-all duration-200 cursor-pointer group"
+                    style={{
+                      clipPath:
+                        'polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px), 0 14px)',
+                      filter: isSelected
+                        ? 'drop-shadow(0 0 16px rgba(245, 158, 11, 0.4))'
+                        : 'none',
+                    }}
+                  >
+                    <div
+                      className={`p-[1.5px] transition-all duration-200 ${
+                        isSelected
+                          ? 'bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500'
+                          : 'bg-gradient-to-b from-neutral-700/80 via-neutral-800/60 to-neutral-700/80 group-hover:from-neutral-500 group-hover:to-neutral-600'
+                      }`}
+                      style={{
+                        clipPath:
+                          'polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px), 0 14px)',
+                      }}
+                    >
+                      <div
+                        className="px-3.5 py-2.5 sm:px-4 sm:py-3 flex items-center justify-between gap-2.5 transition-all"
+                        style={{
+                          backgroundColor: isSelected ? 'rgba(14, 15, 20, 0.94)' : 'rgba(15, 16, 21, 0.92)',
+                          clipPath:
+                            'polygon(13px 0, calc(100% - 13px) 0, 100% 13px, 100% calc(100% - 13px), calc(100% - 13px) 100%, 13px 100%, 0 calc(100% - 13px), 0 13px)',
+                          backgroundImage: isSelected
+                            ? 'radial-gradient(ellipse at 50% 0%, rgba(245, 158, 11, 0.09) 0%, rgba(245, 158, 11, 0.02) 65%, transparent 100%), repeating-linear-gradient(45deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 6px), repeating-linear-gradient(-45deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 6px)'
+                            : 'repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 6px), repeating-linear-gradient(-45deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 6px)',
+                        }}
+                      >
+                        {/* LEFT: NUMBER & VUELTAS */}
+                        <div className="flex flex-col items-center justify-center min-w-[62px] sm:min-w-[72px] shrink-0">
+                          <div
+                            className={`text-2xl sm:text-3xl font-black font-mono leading-none tracking-tight ${
+                              isSelected
+                                ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]'
+                                : 'text-neutral-200'
+                            }`}
+                          >
+                            {String(item.val).padStart(2, '0')}
+                          </div>
+                          <div
+                            className={`text-[9px] sm:text-[10px] font-black tracking-widest uppercase mt-0.5 ${
+                              isSelected ? 'text-amber-400' : 'text-neutral-400'
+                            }`}
+                          >
+                            VUELTAS
+                          </div>
+                        </div>
+
+                        {/* VERTICAL DIVIDER */}
+                        <div
+                          className={`w-[1px] h-9 self-center shrink-0 ${
+                            isSelected ? 'bg-amber-500/40' : 'bg-white/10'
+                          }`}
+                        />
+
+                        {/* MIDDLE: TITLE, DESCRIPTION & ESTIMATED TIME */}
+                        <div className="flex-1 min-w-0 pr-1">
+                          <div
+                            className={`text-xs sm:text-sm font-black uppercase tracking-wider font-mono truncate ${
+                              isSelected ? 'text-amber-400 drop-shadow-[0_0_6px_rgba(245,158,11,0.3)]' : 'text-white'
+                            }`}
+                          >
+                            {item.title}
+                          </div>
+                          <div className="text-[10px] sm:text-[11px] text-neutral-300 leading-tight mt-0.5 line-clamp-2 font-sans">
+                            {item.desc}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <Clock
+                              className={`w-3 h-3 shrink-0 ${
+                                isSelected ? 'text-amber-400' : 'text-neutral-400'
+                              }`}
+                            />
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400 font-mono">
+                              TIEMPO ESTIMADO
+                            </span>
+                            <span
+                              className={`text-xs font-black font-mono ${
+                                isSelected ? 'text-amber-400' : 'text-neutral-200'
+                              }`}
+                            >
+                              {timeFormatted}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* RIGHT: SLANTED METER BARS & RADIO CHECK */}
+                        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                          {/* 7 Slanted Bars */}
+                          <div className="flex items-center gap-1">
+                            {Array.from({ length: 7 }).map((_, barIdx) => {
+                              const isLit = barIdx < item.litBars;
+                              return (
+                                <div
+                                  key={barIdx}
+                                  className={`w-1.5 sm:w-2 h-2.5 sm:h-3 -skew-x-12 rounded-[1px] transition-colors ${
+                                    isLit
+                                      ? isSelected
+                                        ? 'bg-amber-400 shadow-[0_0_6px_#f59e0b]'
+                                        : 'bg-neutral-300'
+                                      : 'bg-neutral-800'
+                                  }`}
+                                />
+                              );
+                            })}
+                          </div>
+
+                          {/* Radio Check Circle */}
+                          {isSelected ? (
+                            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-amber-400 bg-amber-400/20 flex items-center justify-center shadow-[0_0_10px_rgba(245,158,11,0.6)] shrink-0">
+                              <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400 stroke-[3]" />
+                            </div>
+                          ) : (
+                            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border border-neutral-600/90 bg-neutral-900/50 shrink-0" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* CONFIRMATION ACTION BUTTON WITH GLOW RAILS (SHOWN IN PORTRAIT ORIENTATION AT BOTTOM) */}
+            <div className="landscape:hidden relative pt-1">
+              {/* Top ambient glowing rail */}
+              <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-amber-400/90 to-transparent shadow-[0_0_8px_#f59e0b] mb-2.5 opacity-90" />
+
               <button
                 onClick={() => {
                   playUiClick(700);
                   setActiveOverlay('none');
                 }}
-                className="p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                onMouseEnter={playUiHover}
+                className="w-full relative group transition-all duration-200 cursor-pointer"
+                style={{
+                  filter: 'drop-shadow(0 0 16px rgba(245, 158, 11, 0.55))',
+                }}
               >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 font-mono">
-              {[
-                { val: 9 as RaceLapOption, label: '9 VUELTAS', sub: 'Sprint Rápido', desc: 'Carrera corta de alta intensidad sin obligatoriedad de repostaje.' },
-                { val: 20 as RaceLapOption, label: '20 VUELTAS', sub: 'Gran Premio Estándar', desc: 'Estrategia completa con gestión de neumáticos y ventana de pit stop.' },
-                { val: 50 as RaceLapOption, label: '50 VUELTAS', sub: 'Resistencia Completa', desc: 'Duración oficial FIA. Degradación de neumáticos severa y múltiples paradas.' },
-              ].map((item) => (
-                <button
-                  key={item.val}
-                  onClick={() => {
-                    playUiClick(700);
-                    setLaps(item.val);
+                <div
+                  className="p-[1.5px] bg-gradient-to-r from-amber-500 via-amber-300 to-amber-500 transition-all group-hover:brightness-125"
+                  style={{
+                    clipPath:
+                      'polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px), 0 14px)',
                   }}
-                  onMouseEnter={playUiHover}
-                  className={`w-full p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
-                    laps === item.val
-                      ? 'bg-amber-500/25 border-amber-400 text-white shadow-[0_0_20px_rgba(245,158,11,0.3)]'
-                      : 'bg-white/5 border-white/10 hover:border-white/20 text-neutral-300'
-                  }`}
                 >
-                  <div>
-                    <div className="text-sm font-black">{item.label}</div>
-                    <div className="text-xs text-amber-300 mt-0.5">{item.sub}</div>
-                    <div className="text-[10px] text-neutral-400 mt-1">{item.desc}</div>
-                    <div className="text-[10px] text-cyan-300 mt-1">Tiempo estimado: {calculateEstimatedTime(item.val)}</div>
+                  <div
+                    className="py-3 px-6 bg-gradient-to-r from-neutral-950 via-[#18150e] to-neutral-950 flex items-center justify-center gap-2.5 transition-colors"
+                    style={{
+                      backgroundColor: '#0c0d12',
+                      clipPath:
+                        'polygon(13px 0, calc(100% - 13px) 0, 100% 13px, 100% calc(100% - 13px), calc(100% - 13px) 100%, 13px 100%, 0 calc(100% - 13px), 0 13px)',
+                      backgroundImage:
+                        'linear-gradient(to right, #0a0a0c, #1a160f, #0a0a0c), repeating-linear-gradient(45deg, rgba(245, 158, 11, 0.025) 0px, rgba(245, 158, 11, 0.025) 1px, transparent 1px, transparent 6px)',
+                    }}
+                  >
+                    <span className="font-mono text-xs sm:text-sm font-black uppercase tracking-[0.2em] text-white">
+                      CONFIRMAR DURACIÓN
+                    </span>
+                    <ArrowRight className="w-4 h-4 text-amber-400 stroke-[3] transition-transform group-hover:translate-x-1" />
                   </div>
-                  {laps === item.val && <CheckCircle2 className="w-5 h-5 text-amber-400 shrink-0 ml-2" />}
-                </button>
-              ))}
-            </div>
+                </div>
+              </button>
 
-            <button
-              onClick={() => {
-                playUiClick(700);
-                setActiveOverlay('none');
-              }}
-              className="w-full mt-4 py-3 rounded-xl bg-white/15 hover:bg-white/20 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer font-mono"
-            >
-              CONFIRMAR DURACIÓN
-            </button>
+              {/* Bottom ambient glowing rail */}
+              <div className="w-full h-[1px] bg-gradient-to-r from-transparent via-amber-400/90 to-transparent shadow-[0_0_8px_#f59e0b] mt-2.5 opacity-90" />
+            </div>
           </div>
         </div>
       )}
 
-      {/* OVERLAY 4: AI DIFFICULTY MODAL */}
+
+      {/* OVERLAY 4: AI DIFFICULTY MODAL - EXACT REPLICA OF REFERENCE DESIGN */}
       {activeOverlay === 'difficulty' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-lg rounded-3xl bg-neutral-900 border border-white/20 p-5 sm:p-6 shadow-2xl relative">
-            <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-3">
-              <div className="flex items-center gap-2.5">
-                <Swords className="w-5 h-5 text-red-500" />
-                <div>
-                  <h3 className="text-base font-black uppercase tracking-wider text-white font-mono">
-                    NIVEL DE COMPETITIVIDAD (IA)
-                  </h3>
-                  <p className="text-[10px] text-neutral-400">Ajusta la agresividad y ritmo de los pilotos rivales</p>
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden flex items-center justify-center p-3 sm:p-5 select-none animate-in fade-in duration-200 difficulty-modal-backdrop"
+        >
+          {/* Subtle dark ambient backdrop overlay for readability while keeping the rainy track and car in full glory */}
+          <div className="absolute inset-0 bg-black/35 backdrop-blur-[0.5px] pointer-events-none" />
+
+          {/* Centered in portrait, anchored to the left in landscape just like the reference! */}
+          <div className="relative z-10 w-full max-w-xl landscape:max-w-2xl landscape:mr-auto landscape:ml-4 sm:landscape:ml-10 md:landscape:ml-16 flex flex-col gap-2.5 my-auto">
+            {/* TOP BADGE: // CONFIGURACIÓN DE CARRERA */}
+            <div className="flex items-center gap-2 mb-0.5">
+              <div className="flex items-center gap-0.5 -skew-x-12">
+                <span className="w-1.5 h-3.5 bg-cyan-400 rounded-xs shadow-[0_0_8px_#22d3ee]" />
+                <span className="w-1.5 h-3.5 bg-cyan-400 rounded-xs shadow-[0_0_8px_#22d3ee]" />
+              </div>
+              <span className="text-[11px] font-black uppercase tracking-[0.2em] text-cyan-300 font-mono">
+                CONFIGURACIÓN DE CARRERA
+              </span>
+            </div>
+
+            {/* MAIN HUD FRAME WITH CHAMFERED CORNERS */}
+            <div
+              className="relative transition-all"
+              style={{
+                clipPath:
+                  'polygon(22px 0, calc(100% - 22px) 0, 100% 22px, 100% calc(100% - 22px), calc(100% - 22px) 100%, 22px 100%, 0 calc(100% - 22px), 0 22px)',
+              }}
+            >
+              <div
+                className="p-[1.5px] bg-gradient-to-b from-cyan-500/40 via-neutral-700/60 to-neutral-800/80 shadow-[0_0_30px_rgba(6,182,212,0.15)]"
+                style={{
+                  clipPath:
+                    'polygon(22px 0, calc(100% - 22px) 0, 100% 22px, 100% calc(100% - 22px), calc(100% - 22px) 100%, 22px 100%, 0 calc(100% - 22px), 0 22px)',
+                }}
+              >
+                <div
+                  className="p-3.5 sm:p-5 flex flex-col gap-3"
+                  style={{
+                    backgroundColor: 'rgba(10, 13, 20, 0.94)',
+                    clipPath:
+                      'polygon(21px 0, calc(100% - 21px) 0, 100% 21px, 100% calc(100% - 21px), calc(100% - 21px) 100%, 21px 100%, 0 calc(100% - 21px), 0 21px)',
+                    backgroundImage:
+                      'radial-gradient(ellipse at 30% 0%, rgba(6, 182, 212, 0.08) 0%, transparent 60%), repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 6px)',
+                  }}
+                >
+                  {/* HEADER SECTION */}
+                  <div className="flex items-start justify-between pb-2.5 border-b border-cyan-500/20 relative">
+                    <div>
+                      <h2 className="text-sm sm:text-base md:text-lg font-black uppercase tracking-wider text-white font-mono flex items-center gap-1.5">
+                        NIVEL DE COMPETITIVIDAD <span className="text-cyan-400">·</span> IA
+                      </h2>
+                      <p className="text-[10px] sm:text-xs text-neutral-400 font-mono mt-0.5">
+                        Ajusta la agresividad y el ritmo de los pilotos rivales
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        playUiClick(700);
+                        setActiveOverlay('none');
+                      }}
+                      className="p-1 text-neutral-400 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer"
+                      aria-label="Cerrar modal"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+
+                    {/* Ambient cyan accent line below header */}
+                    <div className="absolute -bottom-[1px] left-0 w-28 h-[1px] bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
+                  </div>
+
+                  {/* THREE DIFFICULTY CARDS */}
+                  <div className="flex flex-col gap-2.5">
+                    {[
+                      {
+                        id: 'easy' as RaceDifficulty,
+                        name: 'NOVATO',
+                        descLine1: 'Ritmo accesible y permisivo.',
+                        descLine2: 'Frenadas anticipadas y trazadas seguras.',
+                        agresividad: { pct: 25, lit: 2 },
+                        precision: { pct: 30, lit: 2 },
+                        presion: { pct: 20, lit: 2 },
+                      },
+                      {
+                        id: 'medium' as RaceDifficulty,
+                        name: 'INTERMEDIO',
+                        descLine1: 'Competitivo y equilibrado.',
+                        descLine2: 'Ritmo consistente y adelantamientos calculados.',
+                        agresividad: { pct: 65, lit: 5 },
+                        precision: { pct: 70, lit: 6 },
+                        presion: { pct: 60, lit: 5 },
+                      },
+                      {
+                        id: 'hard' as RaceDifficulty,
+                        name: 'LEYENDA FIA',
+                        descLine1: 'Máxima agresividad.',
+                        descLine2: 'Frenadas al límite, defensa férrea y errores mínimos.',
+                        agresividad: { pct: 95, lit: 8 },
+                        precision: { pct: 95, lit: 8 },
+                        presion: { pct: 90, lit: 7 },
+                      },
+                    ].map((diff) => {
+                      const isSelected = difficulty === diff.id;
+
+                      return (
+                        <div
+                          key={diff.id}
+                          onClick={() => {
+                            playUiClick(700);
+                            setDifficulty(diff.id);
+                          }}
+                          onMouseEnter={playUiHover}
+                          className="relative transition-all duration-200 cursor-pointer group"
+                          style={{
+                            clipPath:
+                              'polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px), 0 14px)',
+                            filter: isSelected
+                              ? 'drop-shadow(0 0 18px rgba(239, 68, 68, 0.55))'
+                              : 'none',
+                          }}
+                        >
+                          {/* CARD BORDER WRAPPER */}
+                          <div
+                            className={`p-[1.5px] transition-all duration-200 ${
+                              isSelected
+                                ? 'bg-gradient-to-r from-red-600 via-rose-500 to-red-600'
+                                : 'bg-gradient-to-r from-cyan-900/40 via-neutral-700/60 to-cyan-900/40 group-hover:from-cyan-700/60 group-hover:to-neutral-600'
+                            }`}
+                            style={{
+                              clipPath:
+                                'polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px), 0 14px)',
+                            }}
+                          >
+                            {/* INNER CARD BODY */}
+                            <div
+                              className="px-3.5 py-2.5 sm:px-4 sm:py-3 flex items-center justify-between gap-3 transition-all"
+                              style={{
+                                backgroundColor: isSelected ? 'rgba(20, 11, 15, 0.95)' : 'rgba(12, 16, 22, 0.92)',
+                                clipPath:
+                                  'polygon(13px 0, calc(100% - 13px) 0, 100% 13px, 100% calc(100% - 13px), calc(100% - 13px) 100%, 13px 100%, 0 calc(100% - 13px), 0 13px)',
+                                backgroundImage: isSelected
+                                  ? 'radial-gradient(ellipse at 50% 0%, rgba(239, 68, 68, 0.12) 0%, rgba(239, 68, 68, 0.02) 65%, transparent 100%), repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 6px)'
+                                  : 'repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 6px)',
+                              }}
+                            >
+                              {/* LEFT: SLANTED STRIPES & TITLE / DESCRIPTION */}
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                {/* Slanted racing hazard stripes // */}
+                                <div className="flex items-center gap-1 -skew-x-12 shrink-0">
+                                  <span
+                                    className={`w-1.5 h-6 rounded-xs transition-colors ${
+                                      isSelected
+                                        ? 'bg-red-500 shadow-[0_0_8px_#ef4444]'
+                                        : 'bg-gradient-to-b from-cyan-400 to-blue-500 shadow-[0_0_6px_rgba(6,182,212,0.6)]'
+                                    }`}
+                                  />
+                                  <span
+                                    className={`w-1.5 h-6 rounded-xs transition-colors ${
+                                      isSelected
+                                        ? 'bg-red-500 shadow-[0_0_8px_#ef4444]'
+                                        : 'bg-gradient-to-b from-cyan-400 to-blue-500 shadow-[0_0_6px_rgba(6,182,212,0.6)]'
+                                    }`}
+                                  />
+                                </div>
+
+                                <div className="min-w-0">
+                                  <div className="text-xs sm:text-sm font-black uppercase tracking-wider font-mono text-white truncate">
+                                    {diff.name}
+                                  </div>
+                                  <div className="text-[10px] sm:text-[11px] text-neutral-300 font-sans leading-tight mt-0.5">
+                                    {diff.descLine1}
+                                  </div>
+                                  <div className="text-[10px] sm:text-[11px] text-neutral-400 font-sans leading-tight">
+                                    {diff.descLine2}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* RIGHT: 3 TELEMETRY METERS & CHECKMARK */}
+                              <div className="flex items-center gap-2.5 sm:gap-3.5 shrink-0">
+                                <div className="flex flex-col gap-1.5 min-w-[130px] sm:min-w-[160px]">
+                                  {/* Metric 1: AGRESIVIDAD */}
+                                  <div className="flex items-center justify-between gap-1.5 text-[9px] font-mono">
+                                    <div className="flex items-center gap-1 text-neutral-400">
+                                      <Crosshair className={`w-3 h-3 ${isSelected ? 'text-red-400' : 'text-cyan-400'}`} />
+                                      <span className="uppercase tracking-wider">AGRESIVIDAD</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="flex items-center gap-0.5">
+                                        {Array.from({ length: 8 }).map((_, barIdx) => {
+                                          const isLit = barIdx < diff.agresividad.lit;
+                                          return (
+                                            <div
+                                              key={barIdx}
+                                              className={`w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-[1px] transition-colors ${
+                                                isLit
+                                                  ? isSelected
+                                                    ? 'bg-red-500 shadow-[0_0_5px_#ef4444]'
+                                                    : 'bg-cyan-400 shadow-[0_0_5px_#22d3ee]'
+                                                  : 'bg-neutral-800'
+                                              }`}
+                                            />
+                                          );
+                                        })}
+                                      </div>
+                                      <span className={`w-6 text-right font-bold ${isSelected ? 'text-red-400' : 'text-cyan-300'}`}>
+                                        {diff.agresividad.pct}%
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Metric 2: PRECISIÓN */}
+                                  <div className="flex items-center justify-between gap-1.5 text-[9px] font-mono">
+                                    <div className="flex items-center gap-1 text-neutral-400">
+                                      <Target className={`w-3 h-3 ${isSelected ? 'text-red-400' : 'text-cyan-400'}`} />
+                                      <span className="uppercase tracking-wider">PRECISIÓN</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="flex items-center gap-0.5">
+                                        {Array.from({ length: 8 }).map((_, barIdx) => {
+                                          const isLit = barIdx < diff.precision.lit;
+                                          return (
+                                            <div
+                                              key={barIdx}
+                                              className={`w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-[1px] transition-colors ${
+                                                isLit
+                                                  ? isSelected
+                                                    ? 'bg-red-500 shadow-[0_0_5px_#ef4444]'
+                                                    : 'bg-cyan-400 shadow-[0_0_5px_#22d3ee]'
+                                                  : 'bg-neutral-800'
+                                              }`}
+                                            />
+                                          );
+                                        })}
+                                      </div>
+                                      <span className={`w-6 text-right font-bold ${isSelected ? 'text-red-400' : 'text-cyan-300'}`}>
+                                        {diff.precision.pct}%
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Metric 3: PRESIÓN */}
+                                  <div className="flex items-center justify-between gap-1.5 text-[9px] font-mono">
+                                    <div className="flex items-center gap-1 text-neutral-400">
+                                      <Gauge className={`w-3 h-3 ${isSelected ? 'text-red-400' : 'text-cyan-400'}`} />
+                                      <span className="uppercase tracking-wider">PRESIÓN</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="flex items-center gap-0.5">
+                                        {Array.from({ length: 8 }).map((_, barIdx) => {
+                                          const isLit = barIdx < diff.presion.lit;
+                                          return (
+                                            <div
+                                              key={barIdx}
+                                              className={`w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-[1px] transition-colors ${
+                                                isLit
+                                                  ? isSelected
+                                                    ? 'bg-red-500 shadow-[0_0_5px_#ef4444]'
+                                                    : 'bg-cyan-400 shadow-[0_0_5px_#22d3ee]'
+                                                  : 'bg-neutral-800'
+                                              }`}
+                                            />
+                                          );
+                                        })}
+                                      </div>
+                                      <span className={`w-6 text-right font-bold ${isSelected ? 'text-red-400' : 'text-cyan-300'}`}>
+                                        {diff.presion.pct}%
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Selection Check Radio Circle */}
+                                {isSelected ? (
+                                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-red-500 bg-red-500/20 flex items-center justify-center shadow-[0_0_12px_rgba(239,68,68,0.7)] shrink-0">
+                                    <Check className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-red-400 stroke-[3]" />
+                                  </div>
+                                ) : (
+                                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border border-neutral-700/80 bg-neutral-900/50 shrink-0" />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
+            </div>
+
+            {/* CONFIRMATION ACTION BUTTON WITH THREE SLANTED RED STRIPES */}
+            <div className="relative pt-0.5">
               <button
                 onClick={() => {
                   playUiClick(700);
                   setActiveOverlay('none');
                 }}
-                className="p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                onMouseEnter={playUiHover}
+                className="w-full relative group transition-all duration-200 cursor-pointer"
+                style={{
+                  filter: 'drop-shadow(0 0 16px rgba(239, 68, 68, 0.5))',
+                }}
               >
-                <X className="w-5 h-5" />
+                <div
+                  className="p-[1.5px] bg-gradient-to-r from-red-600 via-rose-400 to-red-600 transition-all group-hover:brightness-125"
+                  style={{
+                    clipPath:
+                      'polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px), 0 14px)',
+                  }}
+                >
+                  <div
+                    className="py-3 px-6 bg-gradient-to-r from-neutral-950 via-[#180a0e] to-neutral-950 flex items-center justify-center gap-3 transition-colors relative"
+                    style={{
+                      backgroundColor: '#0c0709',
+                      clipPath:
+                        'polygon(13px 0, calc(100% - 13px) 0, 100% 13px, 100% calc(100% - 13px), calc(100% - 13px) 100%, 13px 100%, 0 calc(100% - 13px), 0 13px)',
+                      backgroundImage:
+                        'linear-gradient(to right, #0a0608, #180a0e, #0a0608), repeating-linear-gradient(45deg, rgba(239, 68, 68, 0.025) 0px, rgba(239, 68, 68, 0.025) 1px, transparent 1px, transparent 6px)',
+                    }}
+                  >
+                    {/* Left Accent: Three Slanted Red Hazard Stripes /// */}
+                    <div className="absolute left-4 sm:left-6 flex items-center gap-1 -skew-x-12">
+                      <span className="w-1.5 h-4 bg-red-500 rounded-xs shadow-[0_0_6px_#ef4444]" />
+                      <span className="w-1.5 h-4 bg-red-500 rounded-xs shadow-[0_0_6px_#ef4444]" />
+                      <span className="w-1.5 h-4 bg-red-500 rounded-xs shadow-[0_0_6px_#ef4444]" />
+                    </div>
+
+                    <span className="font-mono text-xs sm:text-sm font-black uppercase tracking-[0.2em] text-white">
+                      CONFIRMAR DIFICULTAD
+                    </span>
+                    <ArrowRight className="w-4 h-4 text-red-400 stroke-[3] transition-transform group-hover:translate-x-1" />
+                  </div>
+                </div>
               </button>
             </div>
-
-            <div className="space-y-3 font-mono">
-              {[
-                { id: 'easy' as RaceDifficulty, name: 'NOVATO', desc: 'Ritmo accesible y permisivo. Frenadas anticipadas y trazadas suaves.' },
-                { id: 'medium' as RaceDifficulty, name: 'INTERMEDIO', desc: 'Competitivo equilibrado. Ritmo consistente y adelantamientos calculados.' },
-                { id: 'hard' as RaceDifficulty, name: 'LEYENDA FIA', desc: 'Máxima agresividad. Frenadas al límite, defensa férrea y ritmo récord.' },
-              ].map((diff) => (
-                <button
-                  key={diff.id}
-                  onClick={() => {
-                    playUiClick(700);
-                    setDifficulty(diff.id);
-                  }}
-                  onMouseEnter={playUiHover}
-                  className={`w-full p-4 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between ${
-                    difficulty === diff.id
-                      ? 'bg-red-600/25 border-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.3)]'
-                      : 'bg-white/5 border-white/10 hover:border-white/20 text-neutral-300'
-                  }`}
-                >
-                  <div>
-                    <div className="text-sm font-black">{diff.name}</div>
-                    <div className="text-[11px] text-neutral-300 mt-1">{diff.desc}</div>
-                  </div>
-                  {difficulty === diff.id && <CheckCircle2 className="w-5 h-5 text-red-400 shrink-0 ml-2" />}
-                </button>
-              ))}
-            </div>
-
-            <button
-              onClick={() => {
-                playUiClick(700);
-                setActiveOverlay('none');
-              }}
-              className="w-full mt-4 py-3 rounded-xl bg-white/15 hover:bg-white/20 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer font-mono"
-            >
-              CONFIRMAR DIFICULTAD
-            </button>
           </div>
         </div>
       )}
@@ -1961,310 +2686,1017 @@ export const MainMenuDashboard: React.FC<MainMenuDashboardProps> = ({
         </div>
       )}
 
-      {/* OVERLAY 6: ASSISTS & SETUP MODAL */}
+      {/* OVERLAY 6: ASSISTS & SETUP MODAL - EXACT REPLICA OF REFERENCE DESIGN */}
       {activeOverlay === 'setup' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-xl rounded-3xl bg-neutral-900 border border-white/20 p-5 sm:p-6 shadow-2xl relative">
-            <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-3">
-              <div className="flex items-center gap-2.5">
-                <Settings className="w-5 h-5 text-cyan-400" />
-                <div>
-                  <h3 className="text-base font-black uppercase tracking-wider text-white font-mono">
-                    AYUDAS DE CONDUCCIÓN Y CÁMARA
-                  </h3>
-                  <p className="text-[10px] text-neutral-400">Calibra las asistencias electrónicas de tu monoplaza</p>
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto overflow-x-hidden flex items-center justify-center p-3 sm:p-5 select-none animate-in fade-in duration-200 assists-modal-backdrop"
+        >
+          {/* Subtle dark ambient backdrop overlay preserving the golden sunset and garage */}
+          <div className="absolute inset-0 bg-black/35 backdrop-blur-[0.5px] pointer-events-none" />
+
+          {/* Centered in portrait, anchored to the left in landscape just like the reference! */}
+          <div className="relative z-10 w-full max-w-xl landscape:max-w-2xl landscape:mr-auto landscape:ml-4 sm:landscape:ml-10 md:landscape:ml-16 flex flex-col gap-2.5 my-auto">
+            {/* TOP HEADER PANEL WITH THREE SLANTED RED HAZARD STRIPES */}
+            <div
+              className="relative transition-all"
+              style={{
+                clipPath:
+                  'polygon(20px 0, calc(100% - 20px) 0, 100% 20px, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 0)',
+              }}
+            >
+              <div
+                className="p-[1.5px] bg-gradient-to-r from-red-600/70 via-neutral-700/60 to-red-600/70 shadow-[0_0_20px_rgba(239,68,68,0.2)]"
+                style={{
+                  clipPath:
+                    'polygon(20px 0, calc(100% - 20px) 0, 100% 20px, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 0)',
+                }}
+              >
+                <div
+                  className="px-4 py-2.5 sm:py-3 bg-[#0a0d14]/95 flex items-center justify-between"
+                  style={{
+                    backgroundColor: 'rgba(10, 13, 20, 0.94)',
+                    clipPath:
+                      'polygon(19px 0, calc(100% - 19px) 0, 100% 19px, 100% calc(100% - 19px), calc(100% - 19px) 100%, 0 100%, 0 0)',
+                    backgroundImage:
+                      'linear-gradient(to right, rgba(239, 68, 68, 0.08) 0%, transparent 40%), repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 6px)',
+                  }}
+                >
+                  <div className="flex items-center gap-3">
+                    {/* Three Slanted Red Hazard Stripes /// */}
+                    <div className="flex items-center gap-1 -skew-x-12 shrink-0">
+                      <span className="w-1.5 h-6 bg-red-600 rounded-xs shadow-[0_0_8px_#ef4444]" />
+                      <span className="w-1.5 h-6 bg-red-600 rounded-xs shadow-[0_0_8px_#ef4444]" />
+                      <span className="w-1.5 h-6 bg-red-600 rounded-xs shadow-[0_0_8px_#ef4444]" />
+                    </div>
+
+                    <div>
+                      <h2 className="text-sm sm:text-base md:text-lg font-black uppercase tracking-wider text-white font-mono leading-none">
+                        AYUDAS DE CONDUCCIÓN Y CÁMARA
+                      </h2>
+                      <p className="text-[10px] sm:text-xs text-neutral-300 font-sans mt-0.5">
+                        Calibra las asistencias electrónicas de tu monoplaza
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      playUiClick(700);
+                      setActiveOverlay('none');
+                    }}
+                    className="p-1 text-neutral-400 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer self-start"
+                    aria-label="Cerrar modal"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
+            </div>
+
+            {/* THREE ELECTRONIC ASSISTS CARDS */}
+            <div className="flex flex-col gap-2">
+              {/* CARD 1: CONTROL DE TRACCIÓN (TC) */}
+              <div
+                className="relative transition-all duration-200"
+                style={{
+                  clipPath:
+                    'polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px)',
+                }}
+              >
+                <div
+                  className="p-[1.5px] bg-gradient-to-r from-cyan-900/40 via-neutral-700/60 to-cyan-900/40"
+                  style={{
+                    clipPath:
+                      'polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px)',
+                  }}
+                >
+                  <div
+                    className="px-3.5 py-2.5 sm:px-4 sm:py-3 flex items-center justify-between gap-3"
+                    style={{
+                      backgroundColor: 'rgba(10, 13, 20, 0.94)',
+                      clipPath:
+                        'polygon(11px 0, calc(100% - 11px) 0, 100% 11px, 100% calc(100% - 11px), calc(100% - 11px) 100%, 11px 100%, 0 calc(100% - 11px), 0 11px)',
+                      backgroundImage:
+                        'repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 6px)',
+                    }}
+                  >
+                    {/* Left Icon Badge with Red Vertical Glowing Tabs */}
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="relative w-11 h-11 shrink-0 flex items-center justify-center bg-[#0d121c]/90 border border-cyan-500/30 rounded-md">
+                        <span className="absolute -left-[2px] w-[3px] h-5 bg-red-500 rounded-full shadow-[0_0_8px_#ef4444]" />
+                        <span className="absolute -right-[2px] w-[3px] h-5 bg-red-500 rounded-full shadow-[0_0_8px_#ef4444]" />
+                        <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11v6a1 1 0 0 1-1 1h-1a2 2 0 0 1-4 0H9a2 2 0 0 1-4 0H4a1 1 0 0 1-1-1v-6z" />
+                          <path d="M4 19c2 0 2 2 4 2s2-2 4-2" stroke="#ef4444" strokeWidth="1.5" />
+                          <path d="M12 19c2 0 2 2 4 2s2-2 4-2" stroke="#ef4444" strokeWidth="1.5" />
+                        </svg>
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="text-xs sm:text-sm font-black uppercase tracking-wider font-mono text-white truncate">
+                          CONTROL DE TRACCIÓN (TC)
+                        </div>
+                        <div className="text-[10px] sm:text-[11px] text-neutral-300 font-sans leading-tight mt-0.5">
+                          Evita el derrape en aceleración calibrando las curvas lentas
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Toggle Button */}
+                    <button
+                      onClick={() => {
+                        playUiClick(700);
+                        setTractionControl(!tractionControl);
+                      }}
+                      className="relative cursor-pointer transition-all duration-200 group shrink-0"
+                      style={{
+                        clipPath: 'polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px)',
+                        filter: tractionControl ? 'drop-shadow(0 0 14px rgba(239, 68, 68, 0.55))' : 'none',
+                      }}
+                    >
+                      <div
+                        className={`p-[1.5px] transition-all group-hover:brightness-125 ${
+                          tractionControl
+                            ? 'bg-gradient-to-r from-red-600 via-rose-500 to-red-600'
+                            : 'bg-neutral-700/60'
+                        }`}
+                        style={{
+                          clipPath: 'polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px)',
+                        }}
+                      >
+                        <div
+                          className="px-5 py-1.5 flex items-center justify-center transition-colors"
+                          style={{
+                            backgroundColor: tractionControl ? '#18060a' : '#101217',
+                            clipPath: 'polygon(7px 0, calc(100% - 7px) 0, 100% 7px, 100% calc(100% - 7px), calc(100% - 7px) 100%, 7px 100%, 0 calc(100% - 7px), 0 7px)',
+                          }}
+                        >
+                          <span
+                            className={`font-mono text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] ${
+                              tractionControl ? 'text-white' : 'text-neutral-400'
+                            }`}
+                          >
+                            {tractionControl ? 'ACTIVO' : 'INACTIVO'}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* CARD 2: SISTEMA ANTIBLOQUEO (ABS) */}
+              <div
+                className="relative transition-all duration-200"
+                style={{
+                  clipPath:
+                    'polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px)',
+                }}
+              >
+                <div
+                  className="p-[1.5px] bg-gradient-to-r from-cyan-900/40 via-neutral-700/60 to-cyan-900/40"
+                  style={{
+                    clipPath:
+                      'polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px)',
+                  }}
+                >
+                  <div
+                    className="px-3.5 py-2.5 sm:px-4 sm:py-3 flex items-center justify-between gap-3"
+                    style={{
+                      backgroundColor: 'rgba(10, 13, 20, 0.94)',
+                      clipPath:
+                        'polygon(11px 0, calc(100% - 11px) 0, 100% 11px, 100% calc(100% - 11px), calc(100% - 11px) 100%, 11px 100%, 0 calc(100% - 11px), 0 11px)',
+                      backgroundImage:
+                        'repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 6px)',
+                    }}
+                  >
+                    {/* Left Icon Badge with Red Vertical Glowing Tabs */}
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="relative w-11 h-11 shrink-0 flex items-center justify-center bg-[#0d121c]/90 border border-cyan-500/30 rounded-md">
+                        <span className="absolute -left-[2px] w-[3px] h-5 bg-red-500 rounded-full shadow-[0_0_8px_#ef4444]" />
+                        <span className="absolute -right-[2px] w-[3px] h-5 bg-red-500 rounded-full shadow-[0_0_8px_#ef4444]" />
+                        <svg className="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.5" strokeDasharray="3 2" />
+                          <circle cx="12" cy="12" r="4.5" stroke="currentColor" strokeWidth="1.2" />
+                          <text x="12" y="14" textAnchor="middle" fill="currentColor" fontSize="5.5" fontWeight="900" fontFamily="monospace">ABS</text>
+                        </svg>
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="text-xs sm:text-sm font-black uppercase tracking-wider font-mono text-white truncate">
+                          SISTEMA ANTIBLOQUEO (ABS)
+                        </div>
+                        <div className="text-[10px] sm:text-[11px] text-neutral-300 font-sans leading-tight mt-0.5">
+                          Impide que los frenos bloqueen las ruedas en frenadas fuertes
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Toggle Button */}
+                    <button
+                      onClick={() => {
+                        playUiClick(700);
+                        setAbsEnabled(!absEnabled);
+                      }}
+                      className="relative cursor-pointer transition-all duration-200 group shrink-0"
+                      style={{
+                        clipPath: 'polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px)',
+                        filter: absEnabled ? 'drop-shadow(0 0 14px rgba(239, 68, 68, 0.55))' : 'none',
+                      }}
+                    >
+                      <div
+                        className={`p-[1.5px] transition-all group-hover:brightness-125 ${
+                          absEnabled
+                            ? 'bg-gradient-to-r from-red-600 via-rose-500 to-red-600'
+                            : 'bg-neutral-700/60'
+                        }`}
+                        style={{
+                          clipPath: 'polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px)',
+                        }}
+                      >
+                        <div
+                          className="px-5 py-1.5 flex items-center justify-center transition-colors"
+                          style={{
+                            backgroundColor: absEnabled ? '#18060a' : '#101217',
+                            clipPath: 'polygon(7px 0, calc(100% - 7px) 0, 100% 7px, 100% calc(100% - 7px), calc(100% - 7px) 100%, 7px 100%, 0 calc(100% - 7px), 0 7px)',
+                          }}
+                        >
+                          <span
+                            className={`font-mono text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] ${
+                              absEnabled ? 'text-white' : 'text-neutral-400'
+                            }`}
+                          >
+                            {absEnabled ? 'ACTIVO' : 'INACTIVO'}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* CARD 3: TRAZADA DINÁMICA FIA */}
+              <div
+                className="relative transition-all duration-200"
+                style={{
+                  clipPath:
+                    'polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px)',
+                }}
+              >
+                <div
+                  className="p-[1.5px] bg-gradient-to-r from-cyan-900/40 via-neutral-700/60 to-cyan-900/40"
+                  style={{
+                    clipPath:
+                      'polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px)',
+                  }}
+                >
+                  <div
+                    className="px-3.5 py-2.5 sm:px-4 sm:py-3 flex items-center justify-between gap-3"
+                    style={{
+                      backgroundColor: 'rgba(10, 13, 20, 0.94)',
+                      clipPath:
+                        'polygon(11px 0, calc(100% - 11px) 0, 100% 11px, 100% calc(100% - 11px), calc(100% - 11px) 100%, 11px 100%, 0 calc(100% - 11px), 0 11px)',
+                      backgroundImage:
+                        'repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 6px)',
+                    }}
+                  >
+                    {/* Left Icon Badge with Red Vertical Glowing Tabs */}
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="relative w-11 h-11 shrink-0 flex items-center justify-center bg-[#0d121c]/90 border border-cyan-500/30 rounded-md">
+                        <span className="absolute -left-[2px] w-[3px] h-5 bg-red-500 rounded-full shadow-[0_0_8px_#ef4444]" />
+                        <span className="absolute -right-[2px] w-[3px] h-5 bg-red-500 rounded-full shadow-[0_0_8px_#ef4444]" />
+                        <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="5" cy="18" r="2" fill="currentColor" />
+                          <circle cx="19" cy="6" r="2" fill="currentColor" />
+                          <path d="M5 16c2-8 12-4 14-8" />
+                        </svg>
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="text-xs sm:text-sm font-black uppercase tracking-wider font-mono text-white truncate">
+                          TRAZADA DINÁMICA FIA
+                        </div>
+                        <div className="text-[10px] sm:text-[11px] text-neutral-300 font-sans leading-tight mt-0.5">
+                          Guía visual de trayectoria y puntos de frenada óptimos
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Toggle Button */}
+                    <button
+                      onClick={() => {
+                        playUiClick(700);
+                        setRacingLine(!racingLine);
+                      }}
+                      className="relative cursor-pointer transition-all duration-200 group shrink-0"
+                      style={{
+                        clipPath: 'polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px)',
+                        filter: racingLine ? 'drop-shadow(0 0 14px rgba(239, 68, 68, 0.55))' : 'none',
+                      }}
+                    >
+                      <div
+                        className={`p-[1.5px] transition-all group-hover:brightness-125 ${
+                          racingLine
+                            ? 'bg-gradient-to-r from-red-600 via-rose-500 to-red-600'
+                            : 'bg-neutral-700/60'
+                        }`}
+                        style={{
+                          clipPath: 'polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px)',
+                        }}
+                      >
+                        <div
+                          className="px-5 py-1.5 flex items-center justify-center transition-colors"
+                          style={{
+                            backgroundColor: racingLine ? '#18060a' : '#101217',
+                            clipPath: 'polygon(7px 0, calc(100% - 7px) 0, 100% 7px, 100% calc(100% - 7px), calc(100% - 7px) 100%, 7px 100%, 0 calc(100% - 7px), 0 7px)',
+                          }}
+                        >
+                          <span
+                            className={`font-mono text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] ${
+                              racingLine ? 'text-white' : 'text-neutral-400'
+                            }`}
+                          >
+                            {racingLine ? 'ACTIVO' : 'INACTIVO'}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* CARD 4: PERSPECTIVA DE CÁMARA PRINCIPAL */}
+              <div
+                className="relative transition-all duration-200"
+                style={{
+                  clipPath:
+                    'polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px)',
+                }}
+              >
+                <div
+                  className="p-[1.5px] bg-gradient-to-r from-cyan-900/40 via-neutral-700/60 to-cyan-900/40"
+                  style={{
+                    clipPath:
+                      'polygon(12px 0, calc(100% - 12px) 0, 100% 12px, 100% calc(100% - 12px), calc(100% - 12px) 100%, 12px 100%, 0 calc(100% - 12px), 0 12px)',
+                  }}
+                >
+                  <div
+                    className="p-3 sm:p-3.5 flex flex-col gap-2.5"
+                    style={{
+                      backgroundColor: 'rgba(10, 13, 20, 0.94)',
+                      clipPath:
+                        'polygon(11px 0, calc(100% - 11px) 0, 100% 11px, 100% calc(100% - 11px), calc(100% - 11px) 100%, 11px 100%, 0 calc(100% - 11px), 0 11px)',
+                      backgroundImage:
+                        'repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 6px)',
+                    }}
+                  >
+                    {/* Header */}
+                    <div className="flex items-center gap-2">
+                      <Camera className="w-4 h-4 text-cyan-400" />
+                      <span className="text-xs sm:text-sm font-black uppercase tracking-wider font-mono text-white">
+                        PERSPECTIVA DE CÁMARA PRINCIPAL
+                      </span>
+                    </div>
+
+                    {/* 4 Camera Selectors */}
+                    <div className="grid grid-cols-4 gap-2">
+                      {[
+                        {
+                          id: 'chase' as CameraViewMode,
+                          name: 'TERCERA',
+                          icon: (
+                            <svg className="w-5 h-5 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                              <path d="M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11v6a1 1 0 0 1-1 1h-1a2 2 0 0 1-4 0H9a2 2 0 0 1-4 0H4a1 1 0 0 1-1-1v-6z" />
+                              <circle cx="7" cy="14" r="1.5" />
+                              <circle cx="17" cy="14" r="1.5" />
+                            </svg>
+                          ),
+                        },
+                        {
+                          id: 'bumper' as CameraViewMode,
+                          name: 'MORRO',
+                          icon: (
+                            <svg className="w-5 h-5 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                              <path d="M4 14h16M7 14v4M17 14v4M12 6l3 8H9l3-8z" />
+                            </svg>
+                          ),
+                        },
+                        {
+                          id: 'hood' as CameraViewMode,
+                          name: 'CAPÓ',
+                          icon: (
+                            <svg className="w-5 h-5 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                              <rect x="4" y="5" width="16" height="14" rx="2" />
+                              <path d="M8 12h8M12 8v8" />
+                            </svg>
+                          ),
+                        },
+                        {
+                          id: 'orbit' as CameraViewMode,
+                          name: 'ÓRBITA',
+                          icon: (
+                            <svg className="w-5 h-5 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                              <circle cx="12" cy="12" r="3" />
+                              <circle cx="12" cy="12" r="8" strokeDasharray="3 3" />
+                            </svg>
+                          ),
+                        },
+                      ].map((cm) => {
+                        const isCamSelected = cameraMode === cm.id;
+
+                        return (
+                          <button
+                            key={cm.id}
+                            onClick={() => {
+                              playUiClick(700);
+                              setCameraMode(cm.id);
+                            }}
+                            onMouseEnter={playUiHover}
+                            className="relative cursor-pointer transition-all duration-200 group"
+                            style={{
+                              clipPath:
+                                'polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px)',
+                              filter: isCamSelected ? 'drop-shadow(0 0 14px rgba(239, 68, 68, 0.6))' : 'none',
+                            }}
+                          >
+                            <div
+                              className={`p-[1.5px] transition-all group-hover:brightness-125 ${
+                                isCamSelected
+                                  ? 'bg-gradient-to-r from-red-600 via-rose-500 to-red-600'
+                                  : 'bg-cyan-950/40 group-hover:bg-cyan-700/40'
+                              }`}
+                              style={{
+                                clipPath:
+                                  'polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px)',
+                              }}
+                            >
+                              <div
+                                className="py-2 px-1 flex flex-col items-center justify-center gap-1 transition-colors"
+                                style={{
+                                  backgroundColor: isCamSelected ? '#1c080d' : '#0c0f16',
+                                  clipPath:
+                                    'polygon(7px 0, calc(100% - 7px) 0, 100% 7px, 100% calc(100% - 7px), calc(100% - 7px) 100%, 7px 100%, 0 calc(100% - 7px), 0 7px)',
+                                }}
+                              >
+                                <div className={isCamSelected ? 'text-red-400' : 'text-neutral-400 group-hover:text-white'}>
+                                  {cm.icon}
+                                </div>
+                                <span
+                                  className={`font-mono text-[9px] sm:text-[10px] font-black uppercase tracking-wider ${
+                                    isCamSelected ? 'text-white' : 'text-neutral-400 group-hover:text-white'
+                                  }`}
+                                >
+                                  {cm.name}
+                                </span>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* CONFIRMATION ACTION BUTTON WITH THREE SLANTED RED STRIPES */}
+            <div className="relative pt-0.5">
               <button
                 onClick={() => {
                   playUiClick(700);
                   setActiveOverlay('none');
                 }}
-                className="p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                onMouseEnter={playUiHover}
+                className="w-full relative group transition-all duration-200 cursor-pointer"
+                style={{
+                  filter: 'drop-shadow(0 0 16px rgba(239, 68, 68, 0.5))',
+                }}
               >
-                <X className="w-5 h-5" />
+                <div
+                  className="p-[1.5px] bg-gradient-to-r from-red-600 via-rose-400 to-red-600 transition-all group-hover:brightness-125"
+                  style={{
+                    clipPath:
+                      'polygon(14px 0, calc(100% - 14px) 0, 100% 14px, 100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%, 0 calc(100% - 14px), 0 14px)',
+                  }}
+                >
+                  <div
+                    className="py-3 px-6 bg-gradient-to-r from-neutral-950 via-[#180a0e] to-neutral-950 flex items-center justify-center gap-3 transition-colors relative"
+                    style={{
+                      backgroundColor: '#0c0709',
+                      clipPath:
+                        'polygon(13px 0, calc(100% - 13px) 0, 100% 13px, 100% calc(100% - 13px), calc(100% - 13px) 100%, 13px 100%, 0 calc(100% - 13px), 0 13px)',
+                      backgroundImage:
+                        'linear-gradient(to right, #0a0608, #180a0e, #0a0608), repeating-linear-gradient(45deg, rgba(239, 68, 68, 0.025) 0px, rgba(239, 68, 68, 0.025) 1px, transparent 1px, transparent 6px)',
+                    }}
+                  >
+                    {/* Left Accent: Three Slanted Red Hazard Stripes /// */}
+                    <div className="absolute left-4 sm:left-6 flex items-center gap-1 -skew-x-12">
+                      <span className="w-1.5 h-4 bg-red-500 rounded-xs shadow-[0_0_6px_#ef4444]" />
+                      <span className="w-1.5 h-4 bg-red-500 rounded-xs shadow-[0_0_6px_#ef4444]" />
+                      <span className="w-1.5 h-4 bg-red-500 rounded-xs shadow-[0_0_6px_#ef4444]" />
+                    </div>
+
+                    <span className="font-mono text-xs sm:text-sm font-black uppercase tracking-[0.2em] text-white">
+                      CONFIRMAR REGLAJES
+                    </span>
+                    <ArrowRight className="w-4 h-4 text-red-400 stroke-[3] transition-transform group-hover:translate-x-1" />
+                  </div>
+                </div>
               </button>
             </div>
 
-            <div className="space-y-3 font-mono text-xs">
-              {/* TC */}
-              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-white">Control de Tracción (TC)</div>
-                  <div className="text-[10px] text-neutral-400">Evita el derrape en aceleración saliendo de curvas lentas</div>
-                </div>
-                <button
-                  onClick={() => {
-                    playUiClick(700);
-                    setTractionControl(!tractionControl);
-                  }}
-                  className={`px-3 py-1.5 rounded-lg font-bold cursor-pointer transition-colors ${
-                    tractionControl ? 'bg-emerald-500 text-black' : 'bg-neutral-800 text-neutral-400'
-                  }`}
-                >
-                  {tractionControl ? 'ACTIVO' : 'OFF'}
-                </button>
-              </div>
-
-              {/* ABS */}
-              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-white">Sistema Antibloqueo (ABS)</div>
-                  <div className="text-[10px] text-neutral-400">Impide que los frenos bloqueen las ruedas en frenadas fuertes</div>
-                </div>
-                <button
-                  onClick={() => {
-                    playUiClick(700);
-                    setAbsEnabled(!absEnabled);
-                  }}
-                  className={`px-3 py-1.5 rounded-lg font-bold cursor-pointer transition-colors ${
-                    absEnabled ? 'bg-emerald-500 text-black' : 'bg-neutral-800 text-neutral-400'
-                  }`}
-                >
-                  {absEnabled ? 'ACTIVO' : 'OFF'}
-                </button>
-              </div>
-
-              {/* Racing Line */}
-              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
-                <div>
-                  <div className="font-bold text-white">Trazada Dinámica FIA</div>
-                  <div className="text-[10px] text-neutral-400">Guía visual de trayectoria y puntos de frenada óptimos</div>
-                </div>
-                <button
-                  onClick={() => {
-                    playUiClick(700);
-                    setRacingLine(!racingLine);
-                  }}
-                  className={`px-3 py-1.5 rounded-lg font-bold cursor-pointer transition-colors ${
-                    racingLine ? 'bg-emerald-500 text-black' : 'bg-neutral-800 text-neutral-400'
-                  }`}
-                >
-                  {racingLine ? 'ACTIVO' : 'OFF'}
-                </button>
-              </div>
-
-              {/* Camera Mode */}
-              <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10">
-                <div className="font-bold text-white mb-2">Perspectiva de Cámara Principal</div>
-                <div className="grid grid-cols-4 gap-2 text-center text-[10px]">
-                  {[
-                    { id: 'chase' as CameraViewMode, name: 'TERCERA' },
-                    { id: 'bumper' as CameraViewMode, name: 'MORRO' },
-                    { id: 'hood' as CameraViewMode, name: 'CAPÓ' },
-                    { id: 'orbit' as CameraViewMode, name: 'ÓRBITA' },
-                  ].map((cm) => (
-                    <button
-                      key={cm.id}
-                      onClick={() => {
-                        playUiClick(700);
-                        setCameraMode(cm.id);
-                      }}
-                      className={`py-2 rounded-xl border transition-all cursor-pointer font-bold ${
-                        cameraMode === cm.id
-                          ? 'bg-cyan-500/25 border-cyan-400 text-white'
-                          : 'bg-white/5 border-white/10 text-neutral-400'
-                      }`}
-                    >
-                      {cm.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            {/* BOTTOM LEFT: VOLVER BUTTON */}
+            <div className="flex items-center justify-start pt-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  playUiClick(700);
+                  setActiveOverlay('none');
+                }}
+                className="px-3.5 py-1.5 rounded-lg bg-black/80 hover:bg-black border border-white/20 hover:border-red-500 text-white font-black text-[10.5px] sm:text-[11px] tracking-wider uppercase transition-all flex items-center gap-1.5 cursor-pointer shadow-md"
+                style={{
+                  clipPath: 'polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%)',
+                }}
+              >
+                <ChevronLeft className="w-3.5 h-3.5 text-red-500 stroke-[3]" />
+                <span>VOLVER</span>
+              </button>
             </div>
-
-            <button
-              onClick={() => {
-                playUiClick(700);
-                setActiveOverlay('none');
-              }}
-              className="w-full mt-4 py-3 rounded-xl bg-white/15 hover:bg-white/20 text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer font-mono"
-            >
-              CONFIRMAR REGLAJES
-            </button>
           </div>
         </div>
       )}
 
-      {/* OVERLAY 7: MULTIPLAYER LOBBY MODAL */}
+      {/* OVERLAY 7: MULTIPLAYER LOBBY MODAL (GT7 / F1 MOTORSPORT REDESIGN) */}
       {activeOverlay === 'multiplayer_modal' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-lg rounded-3xl bg-neutral-900 border border-white/20 p-5 sm:p-6 shadow-2xl relative">
-            <div className="flex items-center justify-between mb-4 border-b border-white/10 pb-3">
-              <div className="flex items-center gap-2.5">
-                <Users className="w-5 h-5 text-emerald-400" />
-                <div>
-                  <h3 className="text-base font-black uppercase tracking-wider text-white font-mono">
-                    LOBBY MULTIJUGADOR 1V1
-                  </h3>
-                  <p className="text-[10px] text-neutral-400">Servidor en tiempo real con WebSocket dedicado</p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  playUiClick(700);
-                  setActiveOverlay('none');
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+          <div
+            className="relative w-full max-w-lg transition-all"
+            style={{
+              clipPath:
+                'polygon(16px 0, calc(100% - 16px) 0, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0 calc(100% - 16px), 0 16px)',
+            }}
+          >
+            {/* Outer Red/Titanium Chamfered Border */}
+            <div
+              className="p-[1.5px] bg-gradient-to-r from-red-600/80 via-neutral-600/60 to-red-600/80 shadow-[0_0_35px_rgba(239,68,68,0.3)]"
+              style={{
+                clipPath:
+                  'polygon(16px 0, calc(100% - 16px) 0, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0 calc(100% - 16px), 0 16px)',
+              }}
+            >
+              {/* Inner Carbon Glass Container */}
+              <div
+                className="p-5 sm:p-6 text-white relative flex flex-col gap-4"
+                style={{
+                  backgroundColor: 'rgba(10, 13, 20, 0.96)',
+                  clipPath:
+                    'polygon(15px 0, calc(100% - 15px) 0, 100% 15px, 100% calc(100% - 15px), calc(100% - 15px) 100%, 15px 100%, 0 calc(100% - 15px), 0 15px)',
+                  backgroundImage:
+                    'radial-gradient(ellipse at top, rgba(239, 68, 68, 0.12) 0%, transparent 65%), repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 6px)',
                 }}
-                className="p-1.5 rounded-full text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+                {/* HEADER BANNER */}
+                <div className="flex items-center justify-between pb-3.5 border-b border-white/10">
+                  <div className="flex items-center gap-3">
+                    {/* Three Slanted Red Hazard Stripes /// */}
+                    <div className="flex items-center gap-1 -skew-x-12 shrink-0">
+                      <span className="w-1.5 h-6 bg-red-600 rounded-xs shadow-[0_0_8px_#ef4444]" />
+                      <span className="w-1.5 h-6 bg-red-600 rounded-xs shadow-[0_0_8px_#ef4444]" />
+                      <span className="w-1.5 h-6 bg-red-600 rounded-xs shadow-[0_0_8px_#ef4444]" />
+                    </div>
 
-            {errorMessage && (
-              <div className="p-3 mb-3 rounded-xl bg-red-950/60 border border-red-500/40 text-red-200 text-xs flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
-                <span>{errorMessage}</span>
-              </div>
-            )}
-
-            {!roomState ? (
-              <div className="space-y-4">
-                <div className="flex rounded-xl bg-white/5 p-1 border border-white/10 font-mono text-xs">
-                  <button
-                    onClick={() => setMpTab('create')}
-                    className={`flex-1 py-2 rounded-lg font-bold transition-all ${
-                      mpTab === 'create' ? 'bg-emerald-500 text-black' : 'text-neutral-400'
-                    }`}
-                  >
-                    CREAR SALA
-                  </button>
-                  <button
-                    onClick={() => setMpTab('join')}
-                    className={`flex-1 py-2 rounded-lg font-bold transition-all ${
-                      mpTab === 'join' ? 'bg-emerald-500 text-black' : 'text-neutral-400'
-                    }`}
-                  >
-                    UNIRSE CON CÓDIGO
-                  </button>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-mono text-neutral-400 block mb-1 uppercase">Tu Alias de Piloto</label>
-                  <input
-                    type="text"
-                    value={playerName}
-                    onChange={(e) => setPlayerName(e.target.value)}
-                    maxLength={16}
-                    className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/15 text-white text-xs font-bold font-mono focus:border-emerald-500 focus:outline-none"
-                  />
-                </div>
-
-                {mpTab === 'create' ? (
-                  <div>
-                    <label className="text-[10px] font-mono text-neutral-400 block mb-1 uppercase">Vueltas del Duelo</label>
-                    <div className="grid grid-cols-3 gap-2 font-mono text-xs">
-                      {[3, 5, 10].map((v) => (
-                        <button
-                          key={v}
-                          onClick={() => setMpLaps(v)}
-                          className={`py-2 rounded-xl border font-bold transition-all ${
-                            mpLaps === v
-                              ? 'bg-emerald-500/30 border-emerald-400 text-white'
-                              : 'bg-white/5 border-white/10 text-neutral-400'
-                          }`}
-                        >
-                          {v} VUELTAS
-                        </button>
-                      ))}
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-sm sm:text-base font-black uppercase tracking-wider text-white font-mono leading-none">
+                          LOBBY MULTIJUGADOR 1V1
+                        </h2>
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/40 text-[9px] font-mono font-bold text-emerald-400">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          ONLINE
+                        </span>
+                      </div>
+                      <p className="text-[10px] sm:text-[11px] text-neutral-300 font-sans mt-0.5">
+                        Servidor en tiempo real • WebSocket P2P de ultra-baja latencia
+                      </p>
                     </div>
                   </div>
-                ) : (
-                  <div>
-                    <label className="text-[10px] font-mono text-neutral-400 block mb-1 uppercase">Código de Sala (4 Letras)</label>
-                    <input
-                      type="text"
-                      value={joinCodeInput}
-                      onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase().slice(0, 6))}
-                      placeholder="Ej. ABCD"
-                      className="w-full px-3 py-2 rounded-xl bg-black/60 border border-white/15 text-white text-sm font-black font-mono tracking-widest text-center focus:border-emerald-500 focus:outline-none"
-                    />
-                  </div>
-                )}
 
-                {mpTab === 'create' ? (
-                  <button
-                    onClick={handleCreateRoomAction}
-                    disabled={isConnecting}
-                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-neutral-950 font-black text-xs uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 font-mono shadow-lg"
-                  >
-                    {isConnecting ? 'CONECTANDO...' : 'CREAR SALA Y ESPERAR RIVAL'}
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleJoinRoomAction}
-                    disabled={isConnecting || !joinCodeInput.trim()}
-                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 text-neutral-950 font-black text-xs uppercase tracking-wider transition-all cursor-pointer disabled:opacity-50 font-mono shadow-lg"
-                  >
-                    {isConnecting ? 'CONECTANDO...' : 'UNIRSE A LA SALA'}
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-4 font-mono text-xs">
-                {/* Active Room Code Card */}
-                <div className="p-4 rounded-2xl bg-black/60 border border-emerald-500/40 text-center">
-                  <span className="text-[10px] text-neutral-400 uppercase tracking-widest block">Código de Invitación</span>
-                  <div className="text-2xl font-black text-emerald-400 tracking-widest mt-1">{roomState.code}</div>
-                  <button
-                    onClick={copyRoomCode}
-                    className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 hover:bg-white/20 text-neutral-200 text-[10px] font-bold cursor-pointer transition-colors"
-                  >
-                    <Copy className="w-3 h-3" />
-                    <span>{isCopied ? '¡COPIADO!' : 'COPIAR CÓDIGO'}</span>
-                  </button>
-                </div>
-
-                {/* Slot P1 & P2 */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                    <span className="text-[9px] text-neutral-400 block">PILOTO 1 (ANFITRIÓN)</span>
-                    <span className="font-bold text-white truncate block">{roomState.players.p1?.name || 'Esperando...'}</span>
-                    <span className={`text-[10px] font-bold ${roomState.players.p1?.isReady ? 'text-emerald-400' : 'text-neutral-500'}`}>
-                      {roomState.players.p1?.isReady ? '✓ LISTO' : 'NO PREPARADO'}
-                    </span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-white/5 border border-white/10">
-                    <span className="text-[9px] text-neutral-400 block">PILOTO 2 (RIVAL)</span>
-                    <span className="font-bold text-white truncate block">{roomState.players.p2?.name || 'Esperando rival...'}</span>
-                    <span className={`text-[10px] font-bold ${roomState.players.p2?.isReady ? 'text-emerald-400' : 'text-neutral-500'}`}>
-                      {roomState.players.p2?.isReady ? '✓ LISTO' : 'NO PREPARADO'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleToggleReady}
-                    className={`flex-1 py-3 rounded-xl font-bold cursor-pointer transition-colors ${
-                      isReady ? 'bg-emerald-500 text-black' : 'bg-white/15 text-white hover:bg-white/25'
-                    }`}
-                  >
-                    {isReady ? '✓ LISTO' : 'MARCAR LISTO'}
-                  </button>
-                  <button
-                    onClick={onLeaveRoom}
-                    className="px-4 py-3 rounded-xl bg-red-600/30 border border-red-500/40 text-red-300 hover:bg-red-600/50 font-bold cursor-pointer transition-colors"
-                  >
-                    SALIR
-                  </button>
-                </div>
-
-                {playerId === 'p1' && (
                   <button
                     onClick={() => {
-                      playUiClick(950);
-                      onStartMultiplayerRace();
+                      playUiClick(700);
+                      setActiveOverlay('none');
                     }}
-                    disabled={!roomState.players.p1?.isReady || !roomState.players.p2?.isReady}
-                    className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-400 disabled:opacity-40 text-black font-black uppercase tracking-wider cursor-pointer shadow-lg"
+                    className="p-1.5 text-neutral-400 hover:text-white hover:bg-white/10 rounded transition-colors cursor-pointer"
+                    aria-label="Cerrar modal"
                   >
-                    INICIAR DUELO (AMBOS LISTOS)
+                    <X className="w-5 h-5" />
                   </button>
+                </div>
+
+                {errorMessage && (
+                  <div className="p-3 rounded-lg bg-red-950/80 border border-red-500/60 text-red-200 text-xs flex items-center gap-2 shadow-[0_0_15px_rgba(239,68,68,0.3)]">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+                    <span className="font-mono">{errorMessage}</span>
+                  </div>
+                )}
+
+                {!roomState ? (
+                  <div className="space-y-4">
+                    {/* SEGMENTED MODE TABS (CREAR SALA vs UNIRSE CON CÓDIGO) */}
+                    <div className="grid grid-cols-2 gap-2">
+                      {/* Tab 1: CREAR SALA */}
+                      <button
+                        onClick={() => {
+                          playUiClick(750);
+                          setMpTab('create');
+                        }}
+                        className="relative cursor-pointer transition-all duration-200 group"
+                        style={{
+                          clipPath:
+                            'polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px)',
+                          filter: mpTab === 'create' ? 'drop-shadow(0 0 14px rgba(239, 68, 68, 0.55))' : 'none',
+                        }}
+                      >
+                        <div
+                          className={`p-[1.5px] transition-all group-hover:brightness-125 ${
+                            mpTab === 'create'
+                              ? 'bg-gradient-to-r from-red-600 via-rose-500 to-red-600'
+                              : 'bg-neutral-700/60'
+                          }`}
+                          style={{
+                            clipPath:
+                              'polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px)',
+                          }}
+                        >
+                          <div
+                            className="py-2.5 px-3 flex items-center justify-center gap-2 transition-colors"
+                            style={{
+                              backgroundColor: mpTab === 'create' ? '#18060a' : '#101217',
+                              clipPath:
+                                'polygon(7px 0, calc(100% - 7px) 0, 100% 7px, 100% calc(100% - 7px), calc(100% - 7px) 100%, 7px 100%, 0 calc(100% - 7px), 0 7px)',
+                            }}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                mpTab === 'create' ? 'bg-red-500 shadow-[0_0_6px_#ef4444]' : 'bg-neutral-600'
+                              }`}
+                            />
+                            <span
+                              className={`font-mono text-xs font-black uppercase tracking-[0.14em] ${
+                                mpTab === 'create' ? 'text-white' : 'text-neutral-400 group-hover:text-neutral-200'
+                              }`}
+                            >
+                              CREAR SALA
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+
+                      {/* Tab 2: UNIRSE CON CÓDIGO */}
+                      <button
+                        onClick={() => {
+                          playUiClick(750);
+                          setMpTab('join');
+                        }}
+                        className="relative cursor-pointer transition-all duration-200 group"
+                        style={{
+                          clipPath:
+                            'polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px)',
+                          filter: mpTab === 'join' ? 'drop-shadow(0 0 14px rgba(239, 68, 68, 0.55))' : 'none',
+                        }}
+                      >
+                        <div
+                          className={`p-[1.5px] transition-all group-hover:brightness-125 ${
+                            mpTab === 'join'
+                              ? 'bg-gradient-to-r from-red-600 via-rose-500 to-red-600'
+                              : 'bg-neutral-700/60'
+                          }`}
+                          style={{
+                            clipPath:
+                              'polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px)',
+                          }}
+                        >
+                          <div
+                            className="py-2.5 px-3 flex items-center justify-center gap-2 transition-colors"
+                            style={{
+                              backgroundColor: mpTab === 'join' ? '#18060a' : '#101217',
+                              clipPath:
+                                'polygon(7px 0, calc(100% - 7px) 0, 100% 7px, 100% calc(100% - 7px), calc(100% - 7px) 100%, 7px 100%, 0 calc(100% - 7px), 0 7px)',
+                            }}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                mpTab === 'join' ? 'bg-red-500 shadow-[0_0_6px_#ef4444]' : 'bg-neutral-600'
+                              }`}
+                            />
+                            <span
+                              className={`font-mono text-xs font-black uppercase tracking-[0.14em] ${
+                                mpTab === 'join' ? 'text-white' : 'text-neutral-400 group-hover:text-neutral-200'
+                              }`}
+                            >
+                              UNIRSE CON CÓDIGO
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+
+                    {/* PILOT ALIAS INPUT */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="text-[10px] font-mono font-bold tracking-[0.16em] text-neutral-300 uppercase flex items-center gap-1.5">
+                          <User className="w-3 h-3 text-red-500" />
+                          <span>TU ALIAS DE PILOTO</span>
+                        </label>
+                        <span className="text-[9px] font-mono text-red-400/80 tracking-widest">[ TELEMETRÍA ID ]</span>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={playerName}
+                          onChange={(e) => setPlayerName(e.target.value)}
+                          maxLength={16}
+                          className="w-full px-3.5 py-2.5 rounded-lg bg-black/70 border border-white/15 text-white text-xs sm:text-sm font-black font-mono tracking-wider focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500/50 shadow-inner transition-all uppercase placeholder-neutral-500"
+                          placeholder="NOMBRE DEL PILOTO"
+                        />
+                      </div>
+                    </div>
+
+                    {/* LAPS OR JOIN CODE */}
+                    {mpTab === 'create' ? (
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-[10px] font-mono font-bold tracking-[0.16em] text-neutral-300 uppercase">
+                            VUELTAS DEL DUELO
+                          </label>
+                          <span className="text-[9px] font-mono text-neutral-400 tracking-widest">[ FORMATO FIA ]</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { laps: 3, label: '3 VUELTAS', sub: 'SPRINT' },
+                            { laps: 5, label: '5 VUELTAS', sub: 'GP' },
+                            { laps: 10, label: '10 VUELTAS', sub: 'PRO' },
+                          ].map((item) => {
+                            const isSelected = mpLaps === item.laps;
+                            return (
+                              <button
+                                key={item.laps}
+                                onClick={() => {
+                                  playUiClick(800);
+                                  setMpLaps(item.laps);
+                                }}
+                                className="relative cursor-pointer transition-all duration-200 group"
+                                style={{
+                                  clipPath:
+                                    'polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px)',
+                                  filter: isSelected ? 'drop-shadow(0 0 10px rgba(239, 68, 68, 0.45))' : 'none',
+                                }}
+                              >
+                                <div
+                                  className={`p-[1.5px] transition-all group-hover:brightness-125 ${
+                                    isSelected
+                                      ? 'bg-gradient-to-r from-red-600 via-rose-500 to-red-600'
+                                      : 'bg-neutral-800'
+                                  }`}
+                                  style={{
+                                    clipPath:
+                                      'polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px)',
+                                  }}
+                                >
+                                  <div
+                                    className="py-2 px-1 text-center transition-colors flex flex-col items-center justify-center"
+                                    style={{
+                                      backgroundColor: isSelected ? '#18060a' : '#101217',
+                                      clipPath:
+                                        'polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px)',
+                                    }}
+                                  >
+                                    <span
+                                      className={`font-mono text-xs font-black uppercase tracking-wider ${
+                                        isSelected ? 'text-white' : 'text-neutral-400 group-hover:text-neutral-200'
+                                      }`}
+                                    >
+                                      {item.label}
+                                    </span>
+                                    <span
+                                      className={`text-[8px] font-mono tracking-widest ${
+                                        isSelected ? 'text-red-400 font-bold' : 'text-neutral-500'
+                                      }`}
+                                    >
+                                      {item.sub}
+                                    </span>
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-[10px] font-mono font-bold tracking-[0.16em] text-neutral-300 uppercase">
+                            CÓDIGO DE SALA (4 LETRAS)
+                          </label>
+                          <span className="text-[9px] font-mono text-cyan-400 tracking-widest">[ CÓDIGO DEL RIVAL ]</span>
+                        </div>
+                        <input
+                          type="text"
+                          value={joinCodeInput}
+                          onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase().slice(0, 6))}
+                          placeholder="EJ. ABCD"
+                          className="w-full px-3.5 py-3 rounded-lg bg-black/70 border border-white/20 text-white text-base sm:text-lg font-black font-mono tracking-[0.3em] text-center focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500/50 shadow-inner uppercase transition-all"
+                        />
+                      </div>
+                    )}
+
+                    {/* MAIN CTA BUTTON (GT7 / F1 MOTORSPORT ANGLED BAR) */}
+                    <button
+                      onClick={mpTab === 'create' ? handleCreateRoomAction : handleJoinRoomAction}
+                      disabled={isConnecting || (mpTab === 'join' && !joinCodeInput.trim())}
+                      className="relative w-full cursor-pointer transition-all duration-200 group disabled:opacity-40 disabled:cursor-not-allowed pt-2"
+                      style={{
+                        clipPath: 'polygon(14px 0, 100% 0, calc(100% - 14px) 100%, 0 100%)',
+                        filter: 'drop-shadow(0 0 18px rgba(239, 68, 68, 0.55))',
+                      }}
+                    >
+                      <div
+                        className="p-[1.5px] bg-gradient-to-r from-red-600 via-rose-500 to-red-600 group-hover:brightness-115 transition-all"
+                        style={{ clipPath: 'polygon(14px 0, 100% 0, calc(100% - 14px) 100%, 0 100%)' }}
+                      >
+                        <div
+                          className="py-3 sm:py-3.5 px-6 flex items-center justify-center gap-3 transition-colors bg-gradient-to-r from-red-600 via-rose-600 to-red-600 group-hover:from-red-500 group-hover:to-rose-500"
+                          style={{
+                            clipPath: 'polygon(13px 0, 100% 0, calc(100% - 13px) 100%, 0 100%)',
+                            backgroundImage:
+                              'repeating-linear-gradient(45deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 2px, transparent 2px, transparent 8px)',
+                          }}
+                        >
+                          <div className="flex items-center gap-1 -skew-x-12 shrink-0">
+                            <span className="w-1.5 h-4 bg-white/90 rounded-xs shadow-[0_0_6px_rgba(255,255,255,0.5)]" />
+                            <span className="w-1.5 h-4 bg-white/90 rounded-xs shadow-[0_0_6px_rgba(255,255,255,0.5)]" />
+                            <span className="w-1.5 h-4 bg-white/90 rounded-xs shadow-[0_0_6px_rgba(255,255,255,0.5)]" />
+                          </div>
+                          <span className="font-mono text-xs sm:text-sm font-black uppercase tracking-[0.18em] text-white italic drop-shadow-sm">
+                            {isConnecting
+                              ? 'CONECTANDO CON SERVIDOR...'
+                              : mpTab === 'create'
+                              ? 'CREAR SALA Y ESPERAR RIVAL'
+                              : 'UNIRSE A LA SALA'}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                ) : (
+                  /* ROOM ACTIVE STATE (IN LOBBY WAITING FOR OPPONENT) */
+                  <div className="space-y-4 font-mono text-xs">
+                    {/* Active Room Code Card */}
+                    <div
+                      className="p-4 rounded-xl relative overflow-hidden"
+                      style={{
+                        backgroundColor: '#10141e',
+                        border: '1px solid rgba(239, 68, 68, 0.4)',
+                        backgroundImage:
+                          'radial-gradient(ellipse at center, rgba(239,68,68,0.12) 0%, transparent 70%), repeating-linear-gradient(45deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 6px)',
+                      }}
+                    >
+                      <span className="text-[10px] text-neutral-400 uppercase tracking-widest block text-center">
+                        CÓDIGO DE INVITACIÓN
+                      </span>
+                      <div className="text-3xl font-black text-white tracking-[0.28em] text-center mt-1 drop-shadow-[0_0_12px_rgba(239,68,68,0.6)]">
+                        {roomState.code}
+                      </div>
+                      <div className="flex justify-center mt-2.5">
+                        <button
+                          onClick={() => {
+                            playUiClick(850);
+                            copyRoomCode();
+                          }}
+                          className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-md bg-white/10 hover:bg-white/20 border border-white/15 text-neutral-200 hover:text-white text-[10px] font-bold cursor-pointer transition-all active:scale-95"
+                        >
+                          <Copy className="w-3.5 h-3.5 text-red-400" />
+                          <span>{isCopied ? '¡COPIADO EN PORTAPAPELES!' : 'COPIAR CÓDIGO'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Slot P1 & P2 Telemetry Cards */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* P1 */}
+                      <div className="p-3 rounded-lg bg-[#0d1017] border border-white/10 relative overflow-hidden">
+                        <span className="absolute top-0 left-0 w-1 h-full bg-red-500 shadow-[0_0_8px_#ef4444]" />
+                        <span className="text-[9px] text-neutral-400 block tracking-wider pl-1.5">PILOTO 1 (ANFITRIÓN)</span>
+                        <span className="font-bold text-white text-sm truncate block mt-0.5 pl-1.5">
+                          {roomState.players.p1?.name || 'Esperando...'}
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold block mt-1 pl-1.5 ${
+                            roomState.players.p1?.isReady ? 'text-emerald-400' : 'text-neutral-500'
+                          }`}
+                        >
+                          {roomState.players.p1?.isReady ? '✓ LISTO PARA CORRER' : '• PREPARANDO...'}
+                        </span>
+                      </div>
+
+                      {/* P2 */}
+                      <div className="p-3 rounded-lg bg-[#0d1017] border border-white/10 relative overflow-hidden">
+                        <span
+                          className={`absolute top-0 left-0 w-1 h-full ${
+                            roomState.players.p2 ? 'bg-cyan-500 shadow-[0_0_8px_#06b6d4]' : 'bg-neutral-700'
+                          }`}
+                        />
+                        <span className="text-[9px] text-neutral-400 block tracking-wider pl-1.5">PILOTO 2 (RIVAL)</span>
+                        <span className="font-bold text-white text-sm truncate block mt-0.5 pl-1.5">
+                          {roomState.players.p2?.name || 'Esperando rival...'}
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold block mt-1 pl-1.5 ${
+                            roomState.players.p2?.isReady
+                              ? 'text-emerald-400'
+                              : roomState.players.p2
+                              ? 'text-neutral-500'
+                              : 'text-amber-400/80'
+                          }`}
+                        >
+                          {roomState.players.p2?.isReady
+                            ? '✓ LISTO PARA CORRER'
+                            : roomState.players.p2
+                            ? '• PREPARANDO...'
+                            : '• ESPERANDO CONEXIÓN...'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Lobby Actions */}
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => {
+                          playUiClick(800);
+                          handleToggleReady();
+                        }}
+                        className={`flex-1 py-3 rounded-lg font-black tracking-wider uppercase cursor-pointer transition-all ${
+                          isReady
+                            ? 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.5)]'
+                            : 'bg-white/10 hover:bg-white/20 text-white border border-white/15'
+                        }`}
+                      >
+                        {isReady ? '✓ ESTOY LISTO' : 'MARCAR LISTO'}
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          playUiClick(650);
+                          onLeaveRoom();
+                        }}
+                        className="px-5 py-3 rounded-lg bg-red-950/60 hover:bg-red-900/80 border border-red-500/50 text-red-300 font-bold uppercase cursor-pointer transition-colors"
+                      >
+                        SALIR
+                      </button>
+                    </div>
+
+                    {/* Host Start Duel Button */}
+                    {playerId === 'p1' && (
+                      <button
+                        onClick={() => {
+                          playUiClick(950);
+                          onStartMultiplayerRace();
+                        }}
+                        disabled={!roomState.players.p1?.isReady || !roomState.players.p2?.isReady}
+                        className="relative w-full cursor-pointer transition-all duration-200 group disabled:opacity-35 disabled:cursor-not-allowed pt-1"
+                        style={{
+                          clipPath: 'polygon(14px 0, 100% 0, calc(100% - 14px) 100%, 0 100%)',
+                          filter: 'drop-shadow(0 0 18px rgba(239, 68, 68, 0.65))',
+                        }}
+                      >
+                        <div
+                          className="p-[1.5px] bg-gradient-to-r from-red-600 via-rose-500 to-red-600 group-hover:brightness-115 transition-all"
+                          style={{ clipPath: 'polygon(14px 0, 100% 0, calc(100% - 14px) 100%, 0 100%)' }}
+                        >
+                          <div
+                            className="py-3 sm:py-3.5 px-6 flex items-center justify-center gap-3 transition-colors bg-gradient-to-r from-red-600 via-rose-600 to-red-600 group-hover:from-red-500 group-hover:to-rose-500"
+                            style={{
+                              clipPath: 'polygon(13px 0, 100% 0, calc(100% - 13px) 100%, 0 100%)',
+                              backgroundImage:
+                                'repeating-linear-gradient(45deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 2px, transparent 2px, transparent 8px)',
+                            }}
+                          >
+                            <div className="flex items-center gap-1 -skew-x-12 shrink-0">
+                              <span className="w-1.5 h-4 bg-white/90 rounded-xs shadow-[0_0_6px_rgba(255,255,255,0.5)]" />
+                              <span className="w-1.5 h-4 bg-white/90 rounded-xs shadow-[0_0_6px_rgba(255,255,255,0.5)]" />
+                              <span className="w-1.5 h-4 bg-white/90 rounded-xs shadow-[0_0_6px_rgba(255,255,255,0.5)]" />
+                            </div>
+                            <span className="font-mono text-xs sm:text-sm font-black uppercase tracking-[0.18em] text-white italic drop-shadow-sm">
+                              INICIAR DUELO (AMBOS LISTOS)
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       )}
@@ -2328,6 +3760,12 @@ export const MainMenuDashboard: React.FC<MainMenuDashboardProps> = ({
           </div>
         </div>
       )}
+
+      {/* In-Game Soundtrack Jukebox Modal */}
+      <SoundtrackModal
+        isOpen={isSoundtrackOpen}
+        onClose={() => setIsSoundtrackOpen(false)}
+      />
     </div>
   );
 };
